@@ -7,34 +7,24 @@ from typing import List, Tuple
 import kubernetes
 import urllib3
 from requests import post, exceptions as requests_exceptions
+from requests.auth import HTTPBasicAuth
 from encoders import DateTimeEncoder
 
 class ClusterScanner:
     """
-    k8s resources scanner for a single cluster
+    k8s resources scanner
     """
 
-    def __init__(self, epsagon_token, api_client=None, timeout=None):
-        """
-        :param timeout: (Optional) cluster requests timeout (used only if client is not given)
-        """
+    def __init__(self, epsagon_token, cluster_name, timeout=None):
         self.epsagon_token = epsagon_token
+        self.cluster_name = cluster_name
         self.client = kubernetes.client.CoreV1Api()
         self.version_client = kubernetes.client.VersionApi()
         self.apps_api_client = kubernetes.client.AppsV1Api()
 
-    def _scan_k8s_resources(self) -> Tuple[List]:
-        """
-        Scans target k8s cluster for different k8s resources
-        """
-        deployments = self.scan_deployments()
-        pods = self.scan_pods()
-        amazon_cw_data = self.scan_amazon_cw_configmap()
-        return deployments, pods, amazon_cw_data
-
     def scan(self, update_time):
         """
-        Scan cluster resources
+        Scans the cluster
         """
         pods = []
         deployments = []
@@ -46,38 +36,45 @@ class ClusterScanner:
             nodes = self.scan_nodes()
             # we assume a target k8s cluster must have at least one worker node
             if nodes:
-                deployments, pods, amazon_cw_data = self._scan_k8s_resources()
+                deployments, pods = self.scan_deployments(), self.scan_pods()
+            amazon_cw_data = self.scan_amazon_cw_configmap()
         except (
             urllib3.exceptions.ConnectionError,
             requests_exceptions.ConnectionError,
         ):
             pass
 
-        # send all data
-        if nodes:
-            data = {
-                "cluster_version": cluster_version,
-                "resources": [item.to_dict() for item in nodes + pods + deployments],
+        data = {
+            "timestamp": update_time,
+            "cluster": {
+                "name": self.cluster_name,
             }
-            if amazon_cw_data:
-                data["amazon_cw_configmap"] = amazon_cw_data
-        else:
-            data = {}
-        # add token
+        }
+        if cluster_version:
+            data["cluster"]["version"] = cluster_version
+        if nodes:
+            data["resources"] = [item.to_dict() for item in nodes + pods + deployments]
+        if amazon_cw_data:
+            data["amazon_cw_configmap"] = amazon_cw_data
+
         post(
             "",
             data=json.dumps(data, cls=DateTimeEncoder),
-            headers={'Content-Type': 'application/json'}
+            headers={'Content-Type': 'application/json'},
+            auth=HTTPBasicAuth(self.epsagon_token, ''),
         )
 
 
     def scan_version(self):
         """
-        Scan the cluster version
+        Gets the cluster version
         """
         return self.version_client.get_code().git_version
 
     def scan_amazon_cw_configmap(self):
+        """
+        Gets the aws CW configmap, if exists
+        """
         data = {}
         configmap_list = self.client.list_namespaced_config_map("amazon-cloudwatch", field_selector="metadata.name=cluster-info")
         if configmap_list.items:
@@ -98,8 +95,7 @@ class ClusterScanner:
 
     def scan_nodes(self):
         """
-        get k8s nodes form `cluster` and save them to db
-        :param update_time: the time to calculate expiration from
+        Scans the cluster nodes
         """
         nodes = self.client.list_node().items
         type(self)._set_kind_to_resources(nodes, "node")
@@ -107,7 +103,7 @@ class ClusterScanner:
 
     def scan_deployments(self):
         """
-        gets k8s deployments from `cluster`, and saves them to the db
+        Scans the cluster deployments
         """
         deployments = (
             self.apps_api_client.list_deployment_for_all_namespaces().items
@@ -117,9 +113,7 @@ class ClusterScanner:
 
     def scan_pods(self):
         """
-        gets k8s pods from `cluster`, and saves them to the db
-        :param update_time: the time to calculate expiration from
-        :param deployments: to set pod deployment by
+        Scans the cluster pods
         """
         pods = self.client.list_pod_for_all_namespaces().items
         type(self)._set_kind_to_resources(pods, "pod")
