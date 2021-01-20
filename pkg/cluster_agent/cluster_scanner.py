@@ -3,6 +3,7 @@
 K8s cluster resources scanner
 """
 import json
+import logging
 from typing import List, Tuple
 import kubernetes
 import urllib3
@@ -15,12 +16,12 @@ class ClusterScanner:
     k8s resources scanner
     """
 
-    def __init__(self, epsagon_token, cluster_name, timeout=None):
+    def __init__(self, epsagon_token, cluster_name, api_client=None, timeout=None):
         self.epsagon_token = epsagon_token
         self.cluster_name = cluster_name
-        self.client = kubernetes.client.CoreV1Api()
-        self.version_client = kubernetes.client.VersionApi()
-        self.apps_api_client = kubernetes.client.AppsV1Api()
+        self.client = kubernetes.client.CoreV1Api(api_client=api_client)
+        self.version_client = kubernetes.client.VersionApi(api_client=api_client)
+        self.apps_api_client = kubernetes.client.AppsV1Api(api_client=api_client)
 
     def scan(self, update_time):
         """
@@ -45,7 +46,8 @@ class ClusterScanner:
             pass
 
         data = {
-            "timestamp": update_time,
+            "update_time": update_time,
+            "epsagon_token": self.epsagon_token,
             "cluster": {
                 "name": self.cluster_name,
             }
@@ -55,10 +57,10 @@ class ClusterScanner:
         if nodes:
             data["resources"] = [item.to_dict() for item in nodes + pods + deployments]
         if amazon_cw_data:
-            data["amazon_cw_configmap"] = amazon_cw_data
+            data["cw_configmap"] = amazon_cw_data
 
         post(
-            "",
+            "https://dev.collector.epsagon.com/resources/v1",
             data=json.dumps(data, cls=DateTimeEncoder),
             headers={'Content-Type': 'application/json'},
             auth=HTTPBasicAuth(self.epsagon_token, ''),

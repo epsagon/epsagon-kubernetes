@@ -11,10 +11,10 @@ from cluster_scanner import ClusterScanner
 
 SCAN_INTERVAL_SECONDS = 60
 EPSAGON_TOKEN = getenv("EPSAGON_TOKEN")
-CLUSTER_NAME = getenv("CLUSTER_NAME")
+CLUSTER_NAME = getenv("EPSAGON_CLUSTER_NAME")
 logging.getLogger().setLevel(
     logging.DEBUG if (
-        getenv("DEBUG_MODE", "").lower() == 'true'
+        getenv("EPSAGON_DEBUG", "").lower() == 'true'
     )
     else logging.INFO
 )
@@ -29,10 +29,11 @@ def main():
         return
 
     config.load_incluster_config()
+    scanner = ClusterScanner(EPSAGON_TOKEN, CLUSTER_NAME)
     while True:
         try:
             update_time = datetime.utcnow().replace(tzinfo=timezone.utc)
-            ClusterScanner(EPSAGON_TOKEN, CLUSTER_NAME).scan(update_time)
+            scanner.scan(update_time)
         except Exception as exception:
             logging.error(str(exception))
             logging.error(format_exc())
