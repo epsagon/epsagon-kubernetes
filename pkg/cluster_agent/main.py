@@ -12,6 +12,10 @@ from cluster_scanner import ClusterScanner
 SCAN_INTERVAL_SECONDS = 60
 EPSAGON_TOKEN = getenv("EPSAGON_TOKEN")
 CLUSTER_NAME = getenv("EPSAGON_CLUSTER_NAME")
+COLLECTOR_URL = getenv(
+    "EPSAGON_COLLECTOR_URL",
+    "https://production.collector.epsagon.com/resources/v1"
+)
 logging.getLogger().setLevel(
     logging.DEBUG if (
         getenv("EPSAGON_DEBUG", "").lower() == 'true'
@@ -29,7 +33,7 @@ def main():
         return
 
     config.load_incluster_config()
-    scanner = ClusterScanner(EPSAGON_TOKEN, CLUSTER_NAME)
+    scanner = ClusterScanner(EPSAGON_TOKEN, CLUSTER_NAME, cluster_url=EPSAGON_COLLECTOR_URL)
     while True:
         try:
             update_time = datetime.utcnow().replace(tzinfo=timezone.utc)
