@@ -25,10 +25,10 @@ spec:
         imagePullPolicy: Always
         env:
         - name: EPSAGON_TOKEN
-          value: "<>"
+          value: ""
         - name: EPSAGON_CLUSTER_NAME
-          value: "TEST"
+          value: ""
         - name: EPSAGON_DEBUG
           value: "false"
         - name: EPSAGON_COLLECTOR_URL
-          value: "https://dev.collector.epsagon.com/resources/v1"
+          value: "https://collector.epsagon.com/resources/v1"

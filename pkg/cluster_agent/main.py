@@ -33,10 +33,13 @@ def main():
         return
 
     config.load_incluster_config()
-    scanner = ClusterScanner(EPSAGON_TOKEN, CLUSTER_NAME, cluster_url=EPSAGON_COLLECTOR_URL)
+    logging.debug("Loaded cluster config")
+    scanner = ClusterScanner(EPSAGON_TOKEN, CLUSTER_NAME, collector_url=COLLECTOR_URL)
+    logging.debug("cluster scanner initialized")
     while True:
         try:
             update_time = datetime.utcnow().replace(tzinfo=timezone.utc)
+            logging.debug("Scanning cluster...")
             scanner.scan(update_time)
         except Exception as exception:
             logging.error(str(exception))

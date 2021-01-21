@@ -59,13 +59,14 @@ class ClusterScanner:
             data["resources"] = [item.to_dict() for item in nodes + pods + deployments]
         if amazon_cw_data:
             data["cw_configmap"] = amazon_cw_data
-
+        logging.debug("Sending data")
         post(
             self.collector_url,
             data=json.dumps(data, cls=DateTimeEncoder),
             headers={'Content-Type': 'application/json'},
             auth=HTTPBasicAuth(self.epsagon_token, ''),
         )
+        logging.debug("data sent")
 
 
     def scan_version(self):
