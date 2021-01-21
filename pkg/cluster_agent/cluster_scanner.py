@@ -47,7 +47,7 @@ class ClusterScanner:
             pass
 
         data = {
-            "update_time": update_time,
+            "update_time": update_time.timestamp(),
             "epsagon_token": self.epsagon_token,
             "cluster": {
                 "name": self.cluster_name,

@@ -14,7 +14,7 @@ EPSAGON_TOKEN = getenv("EPSAGON_TOKEN")
 CLUSTER_NAME = getenv("EPSAGON_CLUSTER_NAME")
 COLLECTOR_URL = getenv(
     "EPSAGON_COLLECTOR_URL",
-    "https://production.collector.epsagon.com/resources/v1"
+    "https://collector.epsagon.com/resources/v1"
 )
 logging.getLogger().setLevel(
     logging.DEBUG if (
