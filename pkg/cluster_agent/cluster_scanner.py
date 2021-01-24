@@ -5,6 +5,7 @@ K8s cluster resources scanner
 import json
 import logging
 from typing import List, Tuple
+from traceback import format_exc
 import kubernetes
 import urllib3
 from requests import post, exceptions as requests_exceptions
@@ -43,8 +44,12 @@ class ClusterScanner:
         except (
             urllib3.exceptions.ConnectionError,
             requests_exceptions.ConnectionError,
-        ):
-            pass
+        ) as error:
+            logging.debug(
+                "Failed to retrieve data from API server - %s:\n%s",
+                str(error),
+                format_exc()
+            )
 
         data = {
             "update_time": update_time.timestamp(),
@@ -59,14 +64,30 @@ class ClusterScanner:
             data["resources"] = [item.to_dict() for item in nodes + pods + deployments]
         if amazon_cw_data:
             data["cw_configmap"] = amazon_cw_data
-        logging.debug("Sending data")
-        post(
-            self.collector_url,
-            data=json.dumps(data, cls=DateTimeEncoder),
-            headers={'Content-Type': 'application/json'},
-            auth=HTTPBasicAuth(self.epsagon_token, ''),
+        logging.info("Sending data to Epsagon")
+        logging.debug(
+            "Sending data:\nCluster version %s\nNodes count: %s\n"
+            "Pods count: %s\nDeployments count: %s\n Total resources count: %s",
+            self.cluster_version if self.cluster_version else "Unknown",
+            len(nodes) if nodes else 0,
+            len(pods) if pods else 0,
+            len(deployments) if deployments else 0,
+            len(data["resources"])
         )
-        logging.debug("data sent")
+        try:
+            post(
+                self.collector_url,
+                data=json.dumps(data, cls=DateTimeEncoder),
+                headers={'Content-Type': 'application/json'},
+                auth=HTTPBasicAuth(self.epsagon_token, ''),
+            )
+            logging.debug("data sent!")
+        except requests_exceptions.RequestException as err:
+            logging.error(
+                "Failed to send data to Epsagon - %s: %s",
+                str(err),
+                format_exc()
+            )
 
 
     def scan_version(self):

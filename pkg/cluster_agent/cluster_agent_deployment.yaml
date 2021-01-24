@@ -21,7 +21,7 @@ spec:
       serviceAccountName: cluster-agent
       containers:
       - name: cluster-agent
-        image: epsagon/cluster_agent:test
+        image: epsagon/cluster_agent:v1.0
         imagePullPolicy: Always
         env:
         - name: EPSAGON_TOKEN
