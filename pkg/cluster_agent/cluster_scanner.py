@@ -2,30 +2,32 @@
 """
 K8s cluster resources scanner
 """
-import json
 import logging
-from typing import List, Tuple
 from traceback import format_exc
+from collections import namedtuple
 import kubernetes
 import urllib3
 from requests import post, exceptions as requests_exceptions
-from requests.auth import HTTPBasicAuth
-from encoders import DateTimeEncoder
+
+ScanResult = namedtuple("ScanResult", [
+    "cluster_version",
+    "nodes",
+    "deployments",
+    "pods"
+    "amazon_cw_data"
+])
 
 class ClusterScanner:
     """
     k8s resources scanner
     """
 
-    def __init__(self, epsagon_token, cluster_name, api_client=None, collector_url=None):
-        self.epsagon_token = epsagon_token
-        self.cluster_name = cluster_name
-        self.collector_url = collector_url
+    def __init__(self, api_client=None):
         self.client = kubernetes.client.CoreV1Api(api_client=api_client)
         self.version_client = kubernetes.client.VersionApi(api_client=api_client)
         self.apps_api_client = kubernetes.client.AppsV1Api(api_client=api_client)
 
-    def scan(self, update_time):
+    def scan(self) -> ScanResult:
         """
         Scans the cluster
         """
@@ -50,45 +52,13 @@ class ClusterScanner:
                 str(error),
                 format_exc()
             )
-
-        data = {
-            "update_time": update_time.timestamp(),
-            "epsagon_token": self.epsagon_token,
-            "cluster": {
-                "name": self.cluster_name,
-            }
-        }
-        if cluster_version:
-            data["cluster"]["version"] = cluster_version
-        if nodes:
-            data["resources"] = [item.to_dict() for item in nodes + pods + deployments]
-        if amazon_cw_data:
-            data["cw_configmap"] = amazon_cw_data
-        logging.info("Sending data to Epsagon")
-        logging.debug(
-            "Cluster version %s\nNodes count: %s\n"
-            "Pods count: %s\nDeployments count: %s\nTotal resources count: %s",
-            cluster_version if cluster_version else "Unknown",
-            len(nodes) if nodes else 0,
-            len(pods) if pods else 0,
-            len(deployments) if deployments else 0,
-            len(data["resources"])
+        return ScanResult(
+            cluster_version=cluster_version,
+            nodes=nodes,
+            pods=pods,
+            deployments=deployments,
+            amazon_cw_data=amazon_cw_data
         )
-        try:
-            post(
-                self.collector_url,
-                data=json.dumps(data, cls=DateTimeEncoder),
-                headers={'Content-Type': 'application/json'},
-                auth=HTTPBasicAuth(self.epsagon_token, ''),
-            )
-            logging.debug("data sent!")
-        except requests_exceptions.RequestException as err:
-            logging.error(
-                "Failed to send data to Epsagon - %s: %s",
-                str(err),
-                format_exc()
-            )
-
 
     def scan_version(self):
         """
