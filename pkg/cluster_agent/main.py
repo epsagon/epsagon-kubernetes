@@ -2,17 +2,13 @@
 Main module
 """
 import time
-import json
 import logging
 from os import getenv
-from typing import Dict
 from datetime import datetime, timezone
 from traceback import format_exc
 from kubernetes import config, client
-from requests import post, exceptions as requests_exceptions
-from requests.auth import HTTPBasicAuth
-from encoders import DateTimeEncoder
-from cluster_scanner import ClusterScanner, ScanResult
+from cluster_scanner import ClusterScanner, ResourceScanResult
+from resource_sender import ResourceSender
 
 SCAN_INTERVAL_SECONDS = 60
 EPSAGON_TOKEN = getenv("EPSAGON_TOKEN")
@@ -24,66 +20,6 @@ COLLECTOR_URL = getenv(
 )
 IS_DEBUG_MODE = getenv("EPSAGON_DEBUG", "").lower() == "true"
 logging.getLogger().setLevel(logging.DEBUG if IS_DEBUG_MODE else logging.INFO)
-
-
-def _send_to_epsagon(data: Dict):
-    """
-    Sends data to Epsagon
-    """
-    try:
-        post(
-            COLLECTOR_URL,
-            data=json.dumps(data, cls=DateTimeEncoder),
-            headers={"Content-Type": "application/json"},
-            auth=HTTPBasicAuth(EPSAGON_TOKEN, ""),
-        )
-        logging.debug("data sent.")
-    except requests_exceptions.RequestException as err:
-        logging.error(
-            "Failed to send data to Epsagon - %s: %s",
-            str(err),
-            format_exc()
-        )
-
-
-def _handle_scan_result(scan_result: ScanResult, update_time):
-    """
-    handle scan result - parse and sends to Epsagon
-    """
-    data = {
-        "update_time": update_time.timestamp(),
-        "epsagon_token": EPSAGON_TOKEN,
-        "cluster": {
-            "name": CLUSTER_NAME,
-        }
-    }
-    if scan_result.cluster_version:
-        data["cluster"]["version"] = scan_result.cluster_version
-    if scan_result.nodes:
-        data["resources"] = [
-            item.to_dict()
-            for item in (
-                    scan_result.nodes +
-                    scan_result.pods +
-                    scan_result.deployments
-            )
-        ]
-    if scan_result.amazon_cw_data:
-        data["cw_configmap"] = scan_result.amazon_cw_data
-    logging.info("Sending data to Epsagon")
-    logging.debug(
-        "Cluster version %s\nNodes count: %s\n"
-        "Pods count: %s\nDeployments count: %s\nTotal resources count: %s",
-        (
-            scan_result.cluster_version
-            if scan_result.cluster_version else "Unknown"
-        ),
-        len(scan_result.nodes),
-        len(scan_result.pods),
-        len(scan_result.deployments),
-        len(data["resources"])
-    )
-    _send_to_epsagon(data)
 
 
 def main():
@@ -107,19 +43,22 @@ def main():
         )
 
     scanner = ClusterScanner()
-    logging.debug("cluster scanner initialized")
+    resource_sender = ResourceSender(EPSAGON_TOKEN, COLLECTOR_URL)
+    logging.debug("cluster scanner & resource sender have been initialized")
     while True:
         try:
             update_time = datetime.utcnow().replace(tzinfo=timezone.utc)
             logging.debug("Scanning cluster...")
-            scan_result: ScanResult = scanner.scan()
+            scan_result: ResourceScanResult = scanner.scan()
             if not scan_result.cluster_version:
                 logging.error(
                     "Failed to scan cluster. Will retry in %s",
                     SCAN_INTERVAL_SECONDS
                 )
             else:
-                _handle_scan_result(scan_result, update_time)
+                resource_sender.send_resource_scan_result(
+                    scan_result, CLUSTER_NAME, update_time
+                )
         except Exception as exception:
             logging.error(str(exception))
             logging.error(format_exc())

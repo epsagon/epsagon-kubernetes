@@ -1,4 +1,3 @@
-# pylint: disable=too-many-lines
 """
 K8s cluster resources scanner
 """
@@ -9,7 +8,7 @@ import kubernetes
 import urllib3
 from requests import post, exceptions as requests_exceptions
 
-ScanResult = namedtuple("ScanResult", [
+ResourceScanResult = namedtuple("ResourceScanResult", [
     "cluster_version",
     "nodes",
     "deployments",
@@ -27,7 +26,7 @@ class ClusterScanner:
         self.version_client = kubernetes.client.VersionApi(api_client=api_client)
         self.apps_api_client = kubernetes.client.AppsV1Api(api_client=api_client)
 
-    def scan(self) -> ScanResult:
+    def scan(self) -> ResourceScanResult:
         """
         Scans the cluster
         """
@@ -52,7 +51,7 @@ class ClusterScanner:
                 str(error),
                 format_exc()
             )
-        return ScanResult(
+        return ResourceScanResult(
             cluster_version=cluster_version,
             nodes=nodes,
             pods=pods,
