@@ -66,9 +66,9 @@ class ClusterScanner:
             data["cw_configmap"] = amazon_cw_data
         logging.info("Sending data to Epsagon")
         logging.debug(
-            "Sending data:\nCluster version %s\nNodes count: %s\n"
-            "Pods count: %s\nDeployments count: %s\n Total resources count: %s",
-            self.cluster_version if self.cluster_version else "Unknown",
+            "Cluster version %s\nNodes count: %s\n"
+            "Pods count: %s\nDeployments count: %s\nTotal resources count: %s",
+            cluster_version if cluster_version else "Unknown",
             len(nodes) if nodes else 0,
             len(pods) if pods else 0,
             len(deployments) if deployments else 0,

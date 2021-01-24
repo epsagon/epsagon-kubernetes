@@ -6,7 +6,7 @@ import logging
 from os import getenv
 from datetime import datetime, timezone
 from traceback import format_exc
-from kubernetes import client, config, configuration
+from kubernetes import config, client
 from cluster_scanner import ClusterScanner
 
 SCAN_INTERVAL_SECONDS = 60
@@ -17,7 +17,7 @@ COLLECTOR_URL = getenv(
     "EPSAGON_COLLECTOR_URL",
     "https://collector.epsagon.com/resources/v1"
 )
-IS_DEBUG_MODE = getenv("EPSAGON_DEBUG", "").lower() == 'true'
+IS_DEBUG_MODE = getenv("EPSAGON_DEBUG", "").lower() == "true"
 logging.getLogger().setLevel(logging.DEBUG if IS_DEBUG_MODE else logging.INFO)
 
 
@@ -32,7 +32,7 @@ def main():
     config.load_incluster_config()
     logging.info("Loaded cluster config")
     if IS_DEBUG_MODE:
-        loaded_conf = configuration.Configuration.get_default_copy()
+        loaded_conf = client.configuration.Configuration.get_default_copy()
         logging.debug(
             "Loaded cluster configuration:\nHost: %s\n"
             "Using SSL Cert? %s\nUsing API token? %s",
