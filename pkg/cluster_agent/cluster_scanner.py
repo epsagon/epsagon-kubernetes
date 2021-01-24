@@ -13,7 +13,7 @@ ScanResult = namedtuple("ScanResult", [
     "cluster_version",
     "nodes",
     "deployments",
-    "pods"
+    "pods",
     "amazon_cw_data"
 ])
 

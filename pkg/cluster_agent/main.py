@@ -37,7 +37,7 @@ def _send_to_epsagon(data: Dict):
             headers={"Content-Type": "application/json"},
             auth=HTTPBasicAuth(EPSAGON_TOKEN, ""),
         )
-        logging.debug("data sent!")
+        logging.debug("data sent.")
     except requests_exceptions.RequestException as err:
         logging.error(
             "Failed to send data to Epsagon - %s: %s",
@@ -57,9 +57,9 @@ def _handle_scan_result(scan_result: ScanResult, update_time):
             "name": CLUSTER_NAME,
         }
     }
-    if cluster_version:
+    if scan_result.cluster_version:
         data["cluster"]["version"] = scan_result.cluster_version
-    if nodes:
+    if scan_result.nodes:
         data["resources"] = [
             item.to_dict()
             for item in (
