@@ -2,6 +2,7 @@
 K8s Resource sender
 """
 import json
+import logging
 from typing import Dict
 from datetime import datetime
 from traceback import format_exc
@@ -76,7 +77,7 @@ class ResourceSender:
         try:
             post(
                 self.collector_url,
-                data=json.dumps(data, cls=DateTimeEncoder),
+                data=json.dumps(data_to_send, cls=DateTimeEncoder),
                 headers={"Content-Type": "application/json"},
                 auth=HTTPBasicAuth(self.epsagon_token, ""),
             )
