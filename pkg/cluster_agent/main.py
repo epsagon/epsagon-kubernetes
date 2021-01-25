@@ -10,7 +10,6 @@ from kubernetes import config, client
 from cluster_scanner import (
     ClusterScanner,
     ResourceScanResult,
-    ClusterScannerException,
 )
 from resource_sender import ResourceSender
 
