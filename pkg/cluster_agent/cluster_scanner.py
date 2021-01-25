@@ -16,6 +16,14 @@ ResourceScanResult = namedtuple("ResourceScanResult", [
     "amazon_cw_data"
 ])
 
+class ClusterScannerException(Exception):
+    pass
+
+
+class InvalidClusterVersionException(ClusterScannerException):
+    pass
+
+
 class ClusterScanner:
     """
     k8s resources scanner
@@ -37,6 +45,10 @@ class ClusterScanner:
         cluster_version = None
         try:
             cluster_version = self.scan_version()
+            if not cluster_version:
+                raise InvalidClusterVersionException(
+                    "Could not extract cluster version"
+                )
             nodes = self.scan_nodes()
             # we assume a target k8s cluster must have at least one worker node
             if nodes:
@@ -51,6 +63,7 @@ class ClusterScanner:
                 str(error),
                 format_exc()
             )
+            raise error
         return ResourceScanResult(
             cluster_version=cluster_version,
             nodes=nodes,

@@ -23,10 +23,10 @@ def _resource_scan_result_to_dict(
         "update_time": update_time.timestamp(),
         "cluster": {
             "name": cluster_name,
+            "version": scan_result.cluster_version,
         }
     }
-    if scan_result.cluster_version:
-        data["cluster"]["version"] = scan_result.cluster_version
+
     if scan_result.nodes:
         data["resources"] = [
             item.to_dict()

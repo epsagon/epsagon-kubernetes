@@ -7,12 +7,16 @@ from os import getenv
 from datetime import datetime, timezone
 from traceback import format_exc
 from kubernetes import config, client
-from cluster_scanner import ClusterScanner, ResourceScanResult
+from cluster_scanner import (
+    ClusterScanner,
+    ResourceScanResult,
+    ClusterScannerException,
+)
 from resource_sender import ResourceSender
 
 SCAN_INTERVAL_SECONDS = 60
 EPSAGON_TOKEN = getenv("EPSAGON_TOKEN")
-DEFAULT_CLUSTER_NAME = "K8s Cluster"
+DEFAULT_CLUSTER_NAME = "K8s-cluster"
 CLUSTER_NAME = getenv("EPSAGON_CLUSTER_NAME", DEFAULT_CLUSTER_NAME)
 COLLECTOR_URL = getenv(
     "EPSAGON_COLLECTOR_URL",
@@ -49,19 +53,17 @@ def main():
         try:
             update_time = datetime.utcnow().replace(tzinfo=timezone.utc)
             logging.debug("Scanning cluster...")
-            scan_result: ResourceScanResult = scanner.scan()
-            if not scan_result.cluster_version:
-                logging.error(
-                    "Failed to scan cluster. Will retry in %s",
-                    SCAN_INTERVAL_SECONDS
-                )
-            else:
-                resource_sender.send_resource_scan_result(
-                    scan_result, CLUSTER_NAME, update_time
-                )
+            resource_sender.send_resource_scan_result(
+                scanner.scan(), CLUSTER_NAME, update_time
+            )
         except Exception as exception:
             logging.error(str(exception))
             logging.error(format_exc())
+            if isinstance(exception, ClusterScannerException):
+                logging.info(
+                    "Encountered an error while scanning cluster - exiting agent."
+                )
+                break
         time.sleep(SCAN_INTERVAL_SECONDS)
 
 if __name__ == "__main__":
