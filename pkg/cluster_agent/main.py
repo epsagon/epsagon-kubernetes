@@ -59,11 +59,6 @@ def main():
         except Exception as exception:
             logging.error(str(exception))
             logging.error(format_exc())
-            if isinstance(exception, ClusterScannerException):
-                logging.info(
-                    "Encountered an error while scanning cluster - exiting agent."
-                )
-                break
         time.sleep(SCAN_INTERVAL_SECONDS)
 
 if __name__ == "__main__":
