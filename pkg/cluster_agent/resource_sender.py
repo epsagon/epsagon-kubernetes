@@ -88,3 +88,4 @@ class ResourceSender:
                 str(err),
                 format_exc()
             )
+            raise
