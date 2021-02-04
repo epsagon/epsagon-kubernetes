@@ -15,8 +15,7 @@ from resource_sender import ResourceSender
 
 SCAN_INTERVAL_SECONDS = 60
 EPSAGON_TOKEN = getenv("EPSAGON_TOKEN")
-DEFAULT_CLUSTER_NAME = "k8s-cluster"
-CLUSTER_NAME = getenv("EPSAGON_CLUSTER_NAME", DEFAULT_CLUSTER_NAME)
+CLUSTER_NAME = getenv("EPSAGON_CLUSTER_NAME")
 COLLECTOR_URL = getenv(
     "EPSAGON_COLLECTOR_URL",
     "https://collector.epsagon.com/resources/v1"
@@ -30,6 +29,13 @@ def main():
         logging.error(
             "Missing Epsagon token. "
             "Make sure to configure EPSAGON_TOKEN in cluster_agent_deployment.yaml"
+        )
+        return
+
+    if not CLUSTER_NAME:
+        logging.error(
+            "Missing cluster name. "
+            "Make sure to configure EPSAGON_CLUSTER_NAME in cluster_agent_deployment.yaml"
         )
         return
 
