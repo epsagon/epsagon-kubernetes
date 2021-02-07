@@ -83,7 +83,7 @@ class ResourceSender:
             )
             logging.debug("data sent.")
         except requests_exceptions.RequestException as err:
-            logging.debug(
+            logging.error(
                 "Failed to send data to Epsagon - %s: %s",
                 str(err),
                 format_exc()
