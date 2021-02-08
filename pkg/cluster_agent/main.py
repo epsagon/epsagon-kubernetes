@@ -1,19 +1,22 @@
 """
-Main module
+Main module - runs collector & cluster discovery
 """
 import time
 import logging
+import asyncio
+import socket
 from os import getenv
 from datetime import datetime, timezone
 from traceback import format_exc
-from kubernetes import config, client
-from cluster_scanner import (
-    ClusterScanner,
-    ResourceScanResult,
-)
-from resource_sender import ResourceSender
+from aiohttp import client_exceptions
+from kubernetes_asyncio import config, client
+from cluster_discovery import ClusterDiscovery
+from events_manager import InMemoryEventsManager
+from events_sender import EventsSender
+from epsagon_client import EpsagonClient, EpsagonClientException
+from forwarder import Forwarder
 
-SCAN_INTERVAL_SECONDS = 60
+RESTART_WAIT_TIME_SECONDS = 300
 EPSAGON_TOKEN = getenv("EPSAGON_TOKEN")
 CLUSTER_NAME = getenv("EPSAGON_CLUSTER_NAME")
 COLLECTOR_URL = getenv(
@@ -21,7 +24,57 @@ COLLECTOR_URL = getenv(
     "https://collector.epsagon.com/resources/v1"
 )
 IS_DEBUG_MODE = getenv("EPSAGON_DEBUG", "").lower() == "true"
+DEFAULT_COLLECTOR_WORKERS_COUNT = 3
 logging.getLogger().setLevel(logging.DEBUG if IS_DEBUG_MODE else logging.INFO)
+
+def _cancel_tasks(tasks):
+    """
+    Cancels the given tasks
+    """
+    for task in tasks:
+        if not task.cancelled():
+            task.cancel()
+
+
+async def run():
+    """
+    Runs the cluster discovery & collector.
+    """
+    events_manager = InMemoryEventsManager()
+    epsagon_client = await EpsagonClient.create(EPSAGON_TOKEN)
+    events_sender = EventsSender(epsagon_client, COLLECTOR_URL)
+    cluster_discovery = ClusterDiscovery(events_manager.write_event)
+    forwarders = [
+        Forwarder(events_manager, events_sender)
+        for _ in range(DEFAULT_COLLECTOR_WORKERS_COUNT)
+    ]
+    while True:
+        try:
+            tasks = [
+                asyncio.ensure_future(forwarder.start()) for forwarder in forwarders
+            ]
+            tasks.append(asyncio.ensure_future(cluster_discovery.start()))
+            await asyncio.gather(*tasks)
+        except (
+                client_exceptions.ClientError,
+                socket.gaierror,
+                ConnectionRefusedError,
+                EpsagonClientException
+        ):
+            logging.error(
+                "Connection error, restarting agent in %d seconds",
+                RESTART_WAIT_TIME_SECONDS
+            )
+            _cancel_tasks(tasks)
+            events_manager.clean()
+            await asyncio.sleep(RESTART_WAIT_TIME_SECONDS)
+        except Exception as exception:
+            logging.error(str(exception))
+            logging.error(format_exc())
+            logging.info("Agent is exiting due to an unexpected error")
+            _cancel_tasks(tasks)
+            epsagon_client.close()
+            break
 
 
 def main():
@@ -50,21 +103,9 @@ def main():
             bool(loaded_conf.ssl_ca_cert),
             bool(loaded_conf.api_key)
         )
-
-    scanner = ClusterScanner()
-    resource_sender = ResourceSender(EPSAGON_TOKEN, COLLECTOR_URL)
-    logging.debug("cluster scanner & resource sender have been initialized")
-    while True:
-        try:
-            update_time = datetime.utcnow().replace(tzinfo=timezone.utc)
-            logging.debug("Scanning cluster...")
-            resource_sender.send_resource_scan_result(
-                scanner.scan(), CLUSTER_NAME, update_time
-            )
-        except Exception as exception:
-            logging.error(str(exception))
-            logging.error(format_exc())
-        time.sleep(SCAN_INTERVAL_SECONDS)
+    loop = asyncio.new_event_loop()
+    loop.run_until_complete(run())
+    loop.close()
 
 if __name__ == "__main__":
     main()

@@ -1,2 +1,3 @@
-requests
-kubernetes
+kubernetes_asyncio
+aiohttp
+aiohttp-retry
