@@ -38,22 +38,23 @@ def _cancel_tasks(tasks):
 
 async def run():
     """
-    Runs the cluster discovery & collector.
+    Runs the cluster discovery & forwarder.
     """
     events_manager = InMemoryEventsManager()
     epsagon_client = await EpsagonClient.create(EPSAGON_TOKEN)
     events_sender = EventsSender(epsagon_client, COLLECTOR_URL)
     cluster_discovery = ClusterDiscovery(events_manager.write_event)
-    forwarders = [
-        Forwarder(events_manager, events_sender)
-        for _ in range(DEFAULT_COLLECTOR_WORKERS_COUNT)
-    ]
+    forwarder = Forwarder(
+        events_manager,
+        events_sender,
+        max_workers=DEFAULT_COLLECTOR_WORKERS_COUNT
+    )
     while True:
         try:
             tasks = [
-                asyncio.ensure_future(forwarder.start()) for forwarder in forwarders
+                asyncio.ensure_future(forwarder.start()),
+                asyncio.ensure_future(cluster_discovery.start())
             ]
-            tasks.append(asyncio.ensure_future(cluster_discovery.start()))
             await asyncio.gather(*tasks)
         except (
                 client_exceptions.ClientError,
