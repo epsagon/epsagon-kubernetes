@@ -27,16 +27,19 @@ class InvalidEventException(KubernetesEventException):
 
 class KubernetesEventType(Enum):
     """
-    Kubernetes event types
+    Kubernetes event types parent class
     """
     ADDED = "ADDED"
     MODIFIED = "MODIFIED"
     DELETED = "DELETED"
+    NEW_CLUSTER = "NEW_CLUSTER"
+
 
 class KubernetesEvent:
     """
     Kubernetes event
     """
+    EVENT_FIELDS = ("raw_object", "type")
 
     def __init__(self, event_type: KubernetesEventType, obj: Dict):
         """
@@ -51,10 +54,16 @@ class KubernetesEvent:
         """
         Instantiate a KubernetetEvent from a raw event dict
         """
-        if "object" not in raw_data:
-            raise InvalidEventException("Missing `object` in event")
-        obj = raw_data["object"]
-        return cls(KubernetesEventType(raw_data.pop("type")), obj)
+        for field in cls.EVENT_FIELDS:
+            if field not in raw_data:
+                raise InvalidEventException(f"Missing `{field}` in event")
+        obj = raw_data["raw_object"]
+        event_type = raw_data["type"]
+        if event_type not in (
+            current_type.value for current_type in KubernetesEventType
+        ):
+            raise InvalidEventException(f"Unsupported `{event_type}` event type")
+        return cls(KubernetesEventType(event_type), obj)
 
     def to_json(self):
         """
@@ -63,7 +72,7 @@ class KubernetesEvent:
         return json.dumps(
             {
                 "type": self.event_type.value,
-                "object": self.obj.to_dict(),
+                "object": self.obj,
             },
             cls=DateTimeEncoder
         )

@@ -42,7 +42,12 @@ async def run():
     """
     events_manager = InMemoryEventsManager()
     epsagon_client = await EpsagonClient.create(EPSAGON_TOKEN)
-    events_sender = EventsSender(epsagon_client, COLLECTOR_URL)
+    events_sender = EventsSender(
+        epsagon_client,
+        COLLECTOR_URL,
+        CLUSTER_NAME,
+        EPSAGON_TOKEN
+    )
     cluster_discovery = ClusterDiscovery(events_manager.write_event)
     forwarders = [
         Forwarder(events_manager, events_sender)
