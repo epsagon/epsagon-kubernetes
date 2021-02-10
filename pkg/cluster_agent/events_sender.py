@@ -28,14 +28,17 @@ class EventsSender:
         """
         if not events:
             return
-
-        data = json.dumps(
+        events_json = json.dumps(events, cls=KubernetesEventEncoder)
+        compressed_data = base64.b64encode(
+            zlib.compress(events_json.encode("utf-8"))
+        ).decode("utf-8")
+        data_to_send = json.dumps(
             {
                 "epsagon_token": self.epsagon_token,
                 "cluster_name": self.cluster_name,
-                "events": events
+                "data": compressed_data,
             },
             cls=KubernetesEventEncoder
         )
-        compressed_data = base64.b64encode(zlib.compress(data.encode("utf-8")))
-        await self.client.post(self.url, compressed_data)
+
+        await self.client.post(self.url, data_to_send)

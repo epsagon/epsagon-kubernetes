@@ -8,6 +8,7 @@ import kubernetes_asyncio
 from aiohttp.client_exceptions import ClientError
 from kubernetes_event import (
     KubernetesEvent,
+    WatchKubernetesEvent,
     KubernetesEventException,
     KubernetesEventType,
 )
@@ -53,7 +54,7 @@ class ClusterDiscovery:
         try:
             async for event in w.stream(target):
                 try:
-                    kubernetes_event = KubernetesEvent.from_dict(event)
+                    kubernetes_event = WatchKubernetesEvent.from_dict(event)
                     await self.event_handler(kubernetes_event)
                 except KubernetesEventException:
                     logging.debug("Skipping invalid event")
