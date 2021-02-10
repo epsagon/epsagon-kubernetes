@@ -32,13 +32,11 @@ class EventsSender:
         compressed_data = base64.b64encode(
             zlib.compress(events_json.encode("utf-8"))
         ).decode("utf-8")
-        data_to_send = json.dumps(
-            {
-                "epsagon_token": self.epsagon_token,
-                "cluster_name": self.cluster_name,
-                "data": compressed_data,
-            },
-            cls=KubernetesEventEncoder
-        )
+        data_to_send = {
+            "epsagon_token": self.epsagon_token,
+            "cluster_name": self.cluster_name,
+            "data": compressed_data,
+        }
+
 
         await self.client.post(self.url, data_to_send)
