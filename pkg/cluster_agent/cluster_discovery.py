@@ -76,7 +76,7 @@ class ClusterDiscovery:
             version: str = (await self.version_client.get_code()).git_version
             try:
                 data = { "version": version }
-                kubernetes_event = KubernetesEvent(KubernetesEventType.NEW_CLUSTER, data)
+                kubernetes_event = KubernetesEvent(KubernetesEventType.CLUSTER, data)
                 await self.event_handler(kubernetes_event)
             except KubernetesEventException:
                 logging.debug("Failed to retrieve cluster version")

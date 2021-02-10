@@ -32,7 +32,7 @@ class KubernetesEventType(Enum):
     ADDED = "ADDED"
     MODIFIED = "MODIFIED"
     DELETED = "DELETED"
-    NEW_CLUSTER = "NEW_CLUSTER"
+    CLUSTER = "CLUSTER"
 
 
 class KubernetesEvent:
