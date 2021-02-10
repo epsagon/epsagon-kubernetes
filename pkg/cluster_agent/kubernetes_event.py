@@ -16,7 +16,6 @@ class KubernetesEventEncoder(DateTimeEncoder):
         """
         if isinstance(o, KubernetesEvent):
             return o.to_json()
-            return json.dumps(o.to_dict(), cls=DateTimeEncoder)
         return super(KubernetesEventEncoder, self).default(o)
 
 
