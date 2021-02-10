@@ -26,6 +26,9 @@ class EventsSender:
         """
         Sends the given events
         """
+        if not events:
+            return
+
         data = json.dumps(
             {
                 "epsagon_token": self.epsagon_token,
