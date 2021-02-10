@@ -74,7 +74,7 @@ async def run():
             logging.error(format_exc())
             logging.info("Agent is exiting due to an unexpected error")
             _cancel_tasks(tasks)
-            epsagon_client.close()
+            await psagon_client.close()
             break
 
 
