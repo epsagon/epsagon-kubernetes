@@ -6,7 +6,12 @@ import logging
 import socket
 import kubernetes_asyncio
 from aiohttp.client_exceptions import ClientError
-from kubernetes_event import KubernetesEvent, KubernetesEventException
+from kubernetes_event import (
+    KubernetesEvent,
+    WatchKubernetesEvent,
+    KubernetesEventException,
+    KubernetesEventType,
+)
 
 class ClusterDiscovery:
     """
@@ -49,7 +54,7 @@ class ClusterDiscovery:
         try:
             async for event in w.stream(target):
                 try:
-                    kubernetes_event = KubernetesEvent.from_dict(event)
+                    kubernetes_event = WatchKubernetesEvent.from_watch_dict(event)
                     await self.event_handler(kubernetes_event)
                 except KubernetesEventException:
                     logging.debug("Skipping invalid event")
@@ -60,9 +65,24 @@ class ClusterDiscovery:
         """
         Stops all watch tasks
         """
-        for task in self.watch_tasks:
+        for task in self.discover_tasks:
             if not task.cancelled():
                 task.cancel()
+
+    async def _get_cluster_version(self):
+        """
+        Gets the cluster version
+        """
+        try:
+            version: str = (await self.version_client.get_code()).git_version
+            try:
+                data = { "version": version }
+                kubernetes_event = KubernetesEvent(KubernetesEventType.CLUSTER, data)
+                await self.event_handler(kubernetes_event)
+            except KubernetesEventException:
+                logging.debug("Failed to retrieve cluster version")
+        except asyncio.CancelledError:
+            pass
 
     async def start(self):
         """
@@ -71,12 +91,15 @@ class ClusterDiscovery:
         after RETRY_INTERVAL_SECONDS.
         """
         try:
-            self.watch_tasks = [
+            self.discover_tasks = [
                 asyncio.ensure_future(self._start_watch(target))
                 for target in self.watch_targets
             ]
+            self.discover_tasks.append(
+                asyncio.ensure_future(self._get_cluster_version())
+            )
             await asyncio.gather(
-                *self.watch_tasks,
+                *self.discover_tasks,
                 loop = asyncio.get_event_loop()
             )
         except (ClientError, socket.gaierror):

@@ -15,56 +15,110 @@ class KubernetesEventEncoder(DateTimeEncoder):
         Overriding for specific serialization
         """
         if isinstance(o, KubernetesEvent):
-            return o.to_json()
+            return json.dumps(o.to_dict(), cls=DateTimeEncoder)
+
         return super(KubernetesEventEncoder, self).default(o)
 
 
 class KubernetesEventException(Exception):
     pass
 
-class InvalidEventException(KubernetesEventException):
+class InvalidWatchEventException(KubernetesEventException):
     pass
 
 class KubernetesEventType(Enum):
     """
-    Kubernetes event types
+    General kubernetes event types, used by Epsagon
+    """
+    CLUSTER = "CLUSTER"
+    WATCH = "WATCH"
+
+
+class WatchKubernetesEventType(Enum):
+    """
+    Kubernetes watch (from kubernetes apiserver) event types
     """
     ADDED = "ADDED"
     MODIFIED = "MODIFIED"
     DELETED = "DELETED"
 
+
 class KubernetesEvent:
     """
-    Kubernetes event
+    Abstract kubernetes event
     """
 
-    def __init__(self, event_type: KubernetesEventType, obj: Dict):
+    def __init__(self, event_type: KubernetesEventType, data):
         """
         :param event_type:
-        :param obj: the actual object the event related to
+        :param data: the actual event data
         """
         self.event_type = event_type
-        self.obj = obj
+        self.data = data
 
-    @classmethod
-    def from_dict(cls, raw_data):
+    def get_formatted_payload(self):
         """
-        Instantiate a KubernetetEvent from a raw event dict
+        Gets the kubernetes event data formatted.
+        Inheriting classes can override this behaviour and format the payload
+        as needed.
+        By default, returns the raw data as given when initialized.
         """
-        if "object" not in raw_data:
-            raise InvalidEventException("Missing `object` in event")
-        obj = raw_data["object"]
-        return cls(KubernetesEventType(raw_data.pop("type")), obj)
+        return self.data
 
-    def to_json(self):
+    def to_dict(self):
         """
         Encode the kubernetes event as JSON
         """
-        return json.dumps(
-            {
-                "type": self.event_type.value,
-                "object": self.obj.to_dict(),
+        return  {
+            "metadata": {
+                "kind": self.event_type.value,
             },
-            cls=DateTimeEncoder
-        )
+            "payload": self.get_formatted_payload(),
+        }
 
+
+class WatchKubernetesEvent(KubernetesEvent):
+    """
+    Kubernetes watch event
+    """
+    EVENT_FIELDS = ("raw_object", "type")
+
+    def __init__(
+            self,
+            watch_event_type: WatchKubernetesEventType,
+            watched_obj: Dict
+    ):
+        """
+        :param watch_event_type: kubernetes watch type
+        :param watched_obj: the actual watched object the event related to
+        """
+        super().__init__(KubernetesEventType.WATCH, watched_obj)
+        self.watch_event_type: WatchKubernetesEventType = watch_event_type
+
+    @classmethod
+    def from_watch_dict(cls, raw_data):
+        """
+        Instantiate a WatchKubernetesEvent from a raw watch event dict
+        """
+        for field in cls.EVENT_FIELDS:
+            if field not in raw_data:
+                raise InvalidWatchEventException(f"Missing `{field}` in event")
+
+        obj = raw_data["raw_object"]
+        event_type = raw_data["type"]
+        if event_type not in (
+            current_type.value for current_type in WatchKubernetesEventType
+        ):
+            raise InvalidWatchEventException(
+                f"Unsupported `{event_type}` watch event type"
+            )
+        return cls(WatchKubernetesEventType(event_type), obj)
+
+    def get_formatted_payload(self):
+        """
+        Gets the watch kubernetes event data formatted.
+        """
+        return {
+            "type": self.watch_event_type.value,
+            "object": super().get_formatted_payload()
+        }
