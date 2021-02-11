@@ -70,7 +70,9 @@ class KubernetesEvent:
         """
         return json.dumps(
             {
-                "kind": self.event_type.value,
+                "metadata": {
+                    "kind": self.event_type.value,
+                },
                 "payload": self.get_formatted_payload(),
             },
             cls=DateTimeEncoder
@@ -98,7 +100,7 @@ class WatchKubernetesEvent(KubernetesEvent):
     @classmethod
     def from_dict(cls, raw_data):
         """
-        Instantiate a WatchKubernetetEvent from a raw watch event dict
+        Instantiate a WatchKubernetesEvent from a raw watch event dict
         """
         for field in cls.EVENT_FIELDS:
             if field not in raw_data:
