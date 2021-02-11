@@ -24,7 +24,6 @@ COLLECTOR_URL = getenv(
     "https://collector.epsagon.com/resources/v1"
 )
 IS_DEBUG_MODE = getenv("EPSAGON_DEBUG", "").lower() == "true"
-DEFAULT_COLLECTOR_WORKERS_COUNT = 3
 logging.getLogger().setLevel(logging.DEBUG if IS_DEBUG_MODE else logging.INFO)
 
 def _cancel_tasks(tasks):
@@ -38,7 +37,7 @@ def _cancel_tasks(tasks):
 
 async def run():
     """
-    Runs the cluster discovery & collector.
+    Runs the cluster discovery & forwarder.
     """
     events_manager = InMemoryEventsManager()
     epsagon_client = await EpsagonClient.create(EPSAGON_TOKEN)
@@ -49,16 +48,16 @@ async def run():
         EPSAGON_TOKEN
     )
     cluster_discovery = ClusterDiscovery(events_manager.write_event)
-    forwarders = [
-        Forwarder(events_manager, events_sender)
-        for _ in range(DEFAULT_COLLECTOR_WORKERS_COUNT)
-    ]
+    forwarder = Forwarder(
+        events_manager,
+        events_sender
+    )
     while True:
         try:
             tasks = [
-                asyncio.ensure_future(forwarder.start()) for forwarder in forwarders
+                asyncio.ensure_future(forwarder.start()),
+                asyncio.ensure_future(cluster_discovery.start())
             ]
-            tasks.append(asyncio.ensure_future(cluster_discovery.start()))
             await asyncio.gather(*tasks)
         except (
                 client_exceptions.ClientError,
