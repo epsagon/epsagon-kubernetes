@@ -76,6 +76,20 @@ class KubernetesEvent:
             "payload": self.get_formatted_payload(),
         }
 
+    def __eq__(self, other):
+        """
+        Checks equity by comparing the event type & data
+        """
+        return (
+            type(self) == type(other) and
+            self.event_type == other.event_type and
+            self.data == other.data
+        )
+
+    def __hash__(self):
+        """ gets the item hash """
+        return hash(str(self.to_dict()))
+
 
 class WatchKubernetesEvent(KubernetesEvent):
     """
@@ -122,3 +136,16 @@ class WatchKubernetesEvent(KubernetesEvent):
             "type": self.watch_event_type.value,
             "object": super().get_formatted_payload()
         }
+
+    def __eq__(self, other):
+        """
+        Checks equity by comapring the event type, data and the watch
+        specific event type
+        """
+        return (
+            super() == other and self.watch_event_type == other.watch_event_type
+        )
+
+    def __hash__(self):
+        """ gets the item hash """
+        return hash(str(self.to_dict()))

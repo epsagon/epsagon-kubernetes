@@ -38,12 +38,16 @@ class EventsManager(abc.ABC):
         raise NotImplementedError
 
 
-    async def get_events(self, max_size) -> List[KubernetesEvent]:
+    async def get_events(self, max_size: int) -> List[KubernetesEvent]:
         """
         Reads up to max_size events.
         Waits until there's at least one event. Then, reading up to max_size
-        events (or all existing events if it's less than max_size)
+        events (or all existing events if it's less than max_size).
+        If max_size < 1, then returning an empty list.
         """
+        if max_size < 1:
+            return []
+
         events = [await self.get_event()]
         while not self.is_empty() and len(events) < max_size:
             events.append(await self.get_event())
