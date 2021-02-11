@@ -12,7 +12,7 @@ class Forwarder:
     """
     A generic KubernetesEvent forwarder
     """
-    DEFAULT_MAX_WORKERS = 1
+    DEFAULT_MAX_WORKERS = 5
     DEFAULT_MAX_EVENTS_TO_READ = 100
 
     def __init__(
@@ -35,7 +35,7 @@ class Forwarder:
         self.max_workers_count: int = max_workers
         if max_events_to_read < 1:
             raise ValueError("Invalid max events to read value, must be > 0")
-        self.max_events_to_read = max_events_to_read
+        self.max_events_to_read: int = max_events_to_read
         self.running_workers: Set[asyncio.Task] = set()
 
     async def _forward_events(self, events: List[KubernetesEvent]):

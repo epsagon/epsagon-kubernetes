@@ -24,7 +24,6 @@ COLLECTOR_URL = getenv(
     "https://collector.epsagon.com/resources/v1"
 )
 IS_DEBUG_MODE = getenv("EPSAGON_DEBUG", "").lower() == "true"
-DEFAULT_COLLECTOR_WORKERS_COUNT = 3
 logging.getLogger().setLevel(logging.DEBUG if IS_DEBUG_MODE else logging.INFO)
 
 def _cancel_tasks(tasks):
@@ -51,8 +50,7 @@ async def run():
     cluster_discovery = ClusterDiscovery(events_manager.write_event)
     forwarder = Forwarder(
         events_manager,
-        events_sender,
-        max_workers=DEFAULT_COLLECTOR_WORKERS_COUNT
+        events_sender
     )
     while True:
         try:
