@@ -16,7 +16,7 @@ from events_sender import EventsSender
 from epsagon_client import EpsagonClient, EpsagonClientException
 from forwarder import Forwarder
 
-RESTART_WAIT_TIME_SECONDS = 300
+RESTART_WAIT_TIME_SECONDS = 60
 EPSAGON_TOKEN = getenv("EPSAGON_TOKEN")
 CLUSTER_NAME = getenv("EPSAGON_CLUSTER_NAME")
 COLLECTOR_URL = getenv(

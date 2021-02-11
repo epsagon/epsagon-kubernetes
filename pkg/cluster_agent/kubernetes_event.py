@@ -15,7 +15,8 @@ class KubernetesEventEncoder(DateTimeEncoder):
         Overriding for specific serialization
         """
         if isinstance(o, KubernetesEvent):
-            return o.to_json()
+            return json.dumps(o.to_dict(), cls=DateTimeEncoder)
+
         return super(KubernetesEventEncoder, self).default(o)
 
 
@@ -64,19 +65,16 @@ class KubernetesEvent:
         """
         return self.data
 
-    def to_json(self):
+    def to_dict(self):
         """
         Encode the kubernetes event as JSON
         """
-        return json.dumps(
-            {
-                "metadata": {
-                    "kind": self.event_type.value,
-                },
-                "payload": self.get_formatted_payload(),
+        return  {
+            "metadata": {
+                "kind": self.event_type.value,
             },
-            cls=DateTimeEncoder
-        )
+            "payload": self.get_formatted_payload(),
+        }
 
 
 class WatchKubernetesEvent(KubernetesEvent):
@@ -98,7 +96,7 @@ class WatchKubernetesEvent(KubernetesEvent):
         self.watch_event_type: WatchKubernetesEventType = watch_event_type
 
     @classmethod
-    def from_dict(cls, raw_data):
+    def from_watch_dict(cls, raw_data):
         """
         Instantiate a WatchKubernetesEvent from a raw watch event dict
         """

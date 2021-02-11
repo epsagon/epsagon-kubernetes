@@ -54,7 +54,7 @@ class ClusterDiscovery:
         try:
             async for event in w.stream(target):
                 try:
-                    kubernetes_event = WatchKubernetesEvent.from_dict(event)
+                    kubernetes_event = WatchKubernetesEvent.from_watch_dict(event)
                     await self.event_handler(kubernetes_event)
                 except KubernetesEventException:
                     logging.debug("Skipping invalid event")
