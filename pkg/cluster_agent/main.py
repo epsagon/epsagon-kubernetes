@@ -16,7 +16,7 @@ from events_sender import EventsSender
 from epsagon_client import EpsagonClient, EpsagonClientException
 from forwarder import Forwarder
 
-RESTART_WAIT_TIME_SECONDS = 300
+RESTART_WAIT_TIME_SECONDS = 60
 EPSAGON_TOKEN = getenv("EPSAGON_TOKEN")
 CLUSTER_NAME = getenv("EPSAGON_CLUSTER_NAME")
 COLLECTOR_URL = getenv(
@@ -42,7 +42,12 @@ async def run():
     """
     events_manager = InMemoryEventsManager()
     epsagon_client = await EpsagonClient.create(EPSAGON_TOKEN)
-    events_sender = EventsSender(epsagon_client, COLLECTOR_URL)
+    events_sender = EventsSender(
+        epsagon_client,
+        COLLECTOR_URL,
+        CLUSTER_NAME,
+        EPSAGON_TOKEN
+    )
     cluster_discovery = ClusterDiscovery(events_manager.write_event)
     forwarder = Forwarder(
         events_manager,
@@ -74,7 +79,7 @@ async def run():
             logging.error(format_exc())
             logging.info("Agent is exiting due to an unexpected error")
             _cancel_tasks(tasks)
-            await psagon_client.close()
+            await epsagon_client.close()
             break
 
 
