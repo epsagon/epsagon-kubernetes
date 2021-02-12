@@ -157,3 +157,38 @@ async def test_max_workers():
     assert not forwarder_task.done()
     forwarder_task.cancel()
     assert set(events) == events_sender.events
+
+
+@pytest.mark.asyncio
+async def test_invalid_max_workers():
+    """
+    assert value error is raised when initializing a forwarder with < 1
+    max workers
+    """
+    max_workers = 0
+    events_manager = EventsManagerMock(DEFAULT_MAX_EVENTS_TO_READ)
+    events_sender = EventsSenderMock(max_workers)
+    with pytest.raises(ValueError):
+        Forwarder(
+            events_manager,
+            events_sender,
+            max_workers=max_workers
+        )
+
+
+@pytest.mark.asyncio
+async def test_invalid_max_events_to_read():
+    """
+    assert value error is raised when initializing a forwarder with < 1
+    max events to read
+    """
+    max_workers = 1
+    max_events_to_read = 0
+    events_manager = EventsManagerMock(max_events_to_read)
+    events_sender = EventsSenderMock(max_workers)
+    with pytest.raises(ValueError):
+        Forwarder(
+            events_manager,
+            events_sender,
+            max_events_to_read=max_events_to_read
+        )
