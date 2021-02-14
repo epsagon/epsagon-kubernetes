@@ -4,6 +4,7 @@ Cluster discovery - watch & publish events in the cluster
 import asyncio
 import logging
 import socket
+from traceback import format_exc
 import kubernetes_asyncio
 from aiohttp.client_exceptions import ClientError
 from kubernetes_event import (
@@ -31,7 +32,12 @@ class ClusterDiscovery:
             self.apps_api_client.list_deployment_for_all_namespaces,
         )
 
-    def __init__(self, event_handler, api_client=None):
+    def __init__(
+            self,
+            event_handler,
+            api_client=None,
+            retry_interval_seconds=RETRY_INTERVAL_SECONDS
+    ):
         """
         :param event_handler: to write events to
         :param api_client: of the cluster to discover. If not given, using the
@@ -43,6 +49,11 @@ class ClusterDiscovery:
         self.apps_api_client = kubernetes_asyncio.client.AppsV1Api(api_client=api_client)
         self.watch_targets = self._create_watch_targets()
         self.watch_tasks = []
+        if retry_interval_seconds < 0:
+            raise ValueError("Retry interval seconds must be bigger than 0")
+
+        self.retry_interval_seconds = retry_interval_seconds
+
 
     async def _start_watch(self, target):
         """
@@ -66,7 +77,7 @@ class ClusterDiscovery:
         Stops all watch tasks
         """
         for task in self.discover_tasks:
-            if not task.cancelled():
+            if not task.done():
                 task.cancel()
 
     async def _get_cluster_version(self):
@@ -74,7 +85,13 @@ class ClusterDiscovery:
         Gets the cluster version
         """
         try:
-            version: str = (await self.version_client.get_code()).git_version
+            try:
+                version: str = (await self.version_client.get_code()).git_version
+            except Exception as exception:
+                logging.debug("Could not extract cluster version")
+                logging.error(str(exception))
+                logging.error(format_exc())
+                return
             try:
                 data = { "version": version }
                 kubernetes_event = KubernetesEvent(KubernetesEventType.CLUSTER, data)
@@ -104,7 +121,7 @@ class ClusterDiscovery:
             )
         except (ClientError, socket.gaierror):
             self._stop_all()
-            wait_time = self.RETRY_INTERVAL_SECONDS
+            wait_time = self.retry_interval_seconds
             logging.error("Connection error, retrying in %d seconds", wait_time)
             await asyncio.sleep(wait_time)
             await self.start()

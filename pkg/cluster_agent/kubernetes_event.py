@@ -71,7 +71,7 @@ class KubernetesEvent:
         """
         return  {
             "metadata": {
-                "kind": self.event_type.value,
+                "kind": self.event_type.value.lower(),
             },
             "payload": self.get_formatted_payload(),
         }
@@ -133,17 +133,18 @@ class WatchKubernetesEvent(KubernetesEvent):
         Gets the watch kubernetes event data formatted.
         """
         return {
-            "type": self.watch_event_type.value,
+            "type": self.watch_event_type.value.lower(),
             "object": super().get_formatted_payload()
         }
 
     def __eq__(self, other):
         """
-        Checks equity by comapring the event type, data and the watch
-        specific event type
+        Checks equity by comapring the data and the watch specific event type
         """
         return (
-            super() == other and self.watch_event_type == other.watch_event_type
+            type(self) == type(other) and
+            self.watch_event_type == other.watch_event_type and
+            self.data == other.data
         )
 
     def __hash__(self):
