@@ -36,6 +36,8 @@ class EpsagonClient:
         :param epsagon_token: used for authorization
         """
         self = cls()
+        if not epsagon_token:
+            raise ValueError("Epsagon token must be given")
         self.epsagon_token = epsagon_token
         retry_options = ExponentialRetry(
             attempts=retry_attempts,
