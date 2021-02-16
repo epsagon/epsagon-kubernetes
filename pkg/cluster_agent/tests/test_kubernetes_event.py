@@ -116,6 +116,48 @@ async def test_watch_to_dict():
 
 
 @pytest.mark.asyncio
+async def test_watch_get_resource_version():
+    """ get_resource_version sanity test """
+    resource_version = "3"
+    data = {
+        "A": "a",
+        "metadata": {
+            "resourceVersion": resource_version,
+        }
+    }
+    event_type = WatchKubernetesEventType.ADDED
+    event = WatchKubernetesEvent(event_type, data)
+    assert event.to_dict() == _get_expected_dict(event)
+    assert resource_version == event.get_resource_version()
+
+
+@pytest.mark.asyncio
+async def test_watch_get_resource_version():
+    """ get_resource_version test - no resource version """
+    data = {
+        "A": "a",
+        "metadata2222": {
+            "a": "b"
+        }
+    }
+    event_type = WatchKubernetesEventType.ADDED
+    event = WatchKubernetesEvent(event_type, data)
+    assert event.to_dict() == _get_expected_dict(event)
+    assert not event.get_resource_version()
+
+
+@pytest.mark.asyncio
+async def test_watch_to_dict():
+    """ to_dict test """
+    data = {
+        "A": "a"
+    }
+    event_type = WatchKubernetesEventType.ADDED
+    event = WatchKubernetesEvent(event_type, data)
+    assert event.to_dict() == _get_expected_dict(event)
+
+
+@pytest.mark.asyncio
 async def test_watch_equity():
     """ __eq__ test """
     all_data = [

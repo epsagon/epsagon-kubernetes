@@ -70,7 +70,7 @@ async def _write_events(
     """
     for event in events:
         await events_manager.write_event(event)
-        asyncio.sleep(0)
+        await asyncio.sleep(0)
 
 
 def _generate_kubernetes_events(count: int) -> List[KubernetesEvent]:

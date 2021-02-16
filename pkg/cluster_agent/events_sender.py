@@ -28,6 +28,7 @@ class EventsSender:
         """
         if not events:
             return
+
         events_json = json.dumps(events, cls=KubernetesEventEncoder)
         compressed_data = base64.b64encode(
             zlib.compress(events_json.encode("utf-8"))

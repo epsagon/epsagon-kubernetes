@@ -95,7 +95,8 @@ class WatchKubernetesEvent(KubernetesEvent):
     """
     Kubernetes watch event
     """
-    EVENT_FIELDS = ("raw_object", "type")
+    OBJECT_FIELD_KEY = "object"
+    EVENT_FIELDS = (OBJECT_FIELD_KEY, "type")
 
     def __init__(
             self,
@@ -118,7 +119,7 @@ class WatchKubernetesEvent(KubernetesEvent):
             if field not in raw_data:
                 raise InvalidWatchEventException(f"Missing `{field}` in event")
 
-        obj = raw_data["raw_object"]
+        obj = raw_data[cls.OBJECT_FIELD_KEY].to_dict()
         event_type = raw_data["type"]
         if event_type not in (
             current_type.value for current_type in WatchKubernetesEventType
@@ -127,6 +128,13 @@ class WatchKubernetesEvent(KubernetesEvent):
                 f"Unsupported `{event_type}` watch event type"
             )
         return cls(WatchKubernetesEventType(event_type), obj)
+
+    def get_resource_version(self):
+        """
+        Gets the watch kubernetes object resource version.
+        If cannot extract resource version, returns None
+        """
+        return self.data.get("metadata", {}).get("resource_version")
 
     def get_formatted_payload(self):
         """

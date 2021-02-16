@@ -8,7 +8,7 @@ import kubernetes_asyncio
 from typing import List, Dict, Set
 from collections import namedtuple
 from asynctest.mock import patch
-from cluster_discovery import ClusterDiscovery
+from cluster_discovery import ClusterDiscovery, WatchTarget
 from kubernetes_event import (
     KubernetesEvent,
     WatchKubernetesEvent,
@@ -26,14 +26,25 @@ CLUSTER_EVENT = KubernetesEvent(
 )
 
 # WatchTarget used to test the cluster discovery watchers
-WatchTarget = namedtuple(
+TestWatchTarget = namedtuple(
     "WatchTarget",
     [
+        "name", # of the watch target
         "events", # to be sent from this watch target
         "error", # to be raised by this watch target
         "delay", # time to wait between each event
     ]
 )
+
+
+class KubernetesResourceObject:
+    """ Test kubernetes resource object """
+    def __init__(self, data: Dict):
+        self.data = data
+
+    def to_dict(self):
+        """ to dict - gets the original data """
+        return self.data
 
 class EventsManager:
     """
@@ -84,10 +95,10 @@ class WatchMock:
     """
     A mock class for the kubernetes client Watch class
     """
-    def stream(self, target: WatchTarget):
+    def stream(self, target: TestWatchTarget, resource_version=None):
         """
         Gets the events stream, raises an error if the
-        WatchTarget is configured with one
+        TestWatchTarget is configured with one
         """
         if target.error:
             raise target.error
@@ -126,14 +137,16 @@ class ClientMock:
 
 def _patch_cluster_discovery_watch_targets(
         cluster_discovery: ClusterDiscovery,
-        watch_targets: List[WatchTarget],
+        watch_targets: List[TestWatchTarget],
         version_client
 ):
     """
     Patches the cluster discovery obj - replace all watch targets and the
     cluster version client with the `fake` ones.
     """
-    cluster_discovery.watch_targets = watch_targets
+    cluster_discovery.watch_targets = {
+        target.name: WatchTarget(target) for target in watch_targets
+    }
     cluster_discovery.version_client = version_client
 
 
@@ -147,43 +160,61 @@ def raw_target_events() -> List[List[Dict]]:
         [
             {
                 "type": "ADDED",
-                "raw_object": { "1a": "1a"},
+                WatchKubernetesEvent.OBJECT_FIELD_KEY: (
+                    KubernetesResourceObject({ "1a": "1a"})
+                )
             },
             {
                 "type": "ADDED",
-                "raw_object": { "1aa": "1aa"},
+                WatchKubernetesEvent.OBJECT_FIELD_KEY: (
+                    KubernetesResourceObject({ "1aa": "1aa"})
+                )
             },
             {
                 "type": "MODIFIED",
-                "raw_object": { "1m": "1m"},
+                WatchKubernetesEvent.OBJECT_FIELD_KEY: (
+                    KubernetesResourceObject({ "1m": "1m"})
+                )
             },
             {
                 "type": "DELETED",
-                "raw_object": { "1d": "1d"},
+                WatchKubernetesEvent.OBJECT_FIELD_KEY: (
+                    KubernetesResourceObject({ "1d": "1d"})
+                )
             },
         ],
         [
             {
                 "type": "ADDED",
-                "raw_object": { "2a": "2a"},
+                WatchKubernetesEvent.OBJECT_FIELD_KEY: (
+                    KubernetesResourceObject({ "2a": "2a"})
+                )
             },
             {
                 "type": "MODIFIED",
-                "raw_object": { "2m": "2m"},
+                WatchKubernetesEvent.OBJECT_FIELD_KEY: (
+                    KubernetesResourceObject({ "2m": "2m"})
+                )
             },
             {
                 "type": "MODIFIED",
-                "raw_object": { "2mm": "2mm"},
+                WatchKubernetesEvent.OBJECT_FIELD_KEY: (
+                    KubernetesResourceObject({ "2mm": "2mm"})
+                )
             },
             {
                 "type": "DELETED",
-                "raw_object": { "1d": "1d"},
+                WatchKubernetesEvent.OBJECT_FIELD_KEY: (
+                    KubernetesResourceObject({ "2d": "1d"})
+                )
             },
         ],
         [
             {
                 "type": "ADDED",
-                "raw_object": { "3a": "3a"},
+                WatchKubernetesEvent.OBJECT_FIELD_KEY: (
+                    KubernetesResourceObject({ "3a": "3a"})
+                )
             },
         ],
     ]
@@ -201,7 +232,7 @@ def _get_expected_events(
         WatchKubernetesEvent.from_watch_dict(raw_event)
         for target_events in raw_events
         for raw_event in target_events
-        if "raw_object" in raw_event # skip invalid test events
+        if WatchKubernetesEvent.OBJECT_FIELD_KEY in raw_event # skip invalid test events
     }
     if cluster_event:
         events.add(cluster_event)
@@ -276,7 +307,7 @@ async def _test_cluster_discovery(
 
     # prepare watch targets - with events and possibly an error, if given
     targets = [
-        WatchTarget(raw_events[i], watch_stream_error, 0.01)
+        TestWatchTarget(str(i), raw_events[i], watch_stream_error, 0.01)
         for i in range(len(raw_events))
     ]
     # replace watch targets & version cluent at cluster_discovery
