@@ -128,19 +128,19 @@ class ClusterDiscovery:
         For each streamed event, creating KubernetesEvent and writing the
         event to the event handler. Ignoring invalid event object.
         """
-        try:
-            if not target.last_resource_version:
-                # resource first time retrieval
-                resource_version = await self._get_initial_list(kind, target.endpoint)
-                self._update_resource_version(
-                    kind,
-                    target,
-                    resource_version
-                )
-            else:
-                # continue watch from last preserved resource version
-                resource_version = target.last_resource_version
+        if not target.last_resource_version:
+            # resource first time retrieval
+            resource_version = await self._get_initial_list(kind, target.endpoint)
+            self._update_resource_version(
+                kind,
+                target,
+                resource_version
+            )
+        else:
+            # continue watch from last preserved resource version
+            resource_version = target.last_resource_version
 
+        try:
             w = kubernetes_asyncio.watch.Watch()
             stream = w.stream(target.endpoint, resource_version=resource_version)
             await self._run_watch(kind, target, stream)
@@ -205,7 +205,7 @@ class ClusterDiscovery:
                 *self.discover_tasks,
                 loop = asyncio.get_event_loop()
             )
-        except socket.gaierror:
+        except (socket.gaierror, ClientError):
             self.stop()
             logging.error(
                 "Connection error, retrying in %d seconds",

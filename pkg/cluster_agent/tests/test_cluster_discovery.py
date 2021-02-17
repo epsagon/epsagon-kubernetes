@@ -5,7 +5,8 @@ import asyncio
 import socket
 import pytest
 import kubernetes_asyncio
-from typing import List, Dict, Set
+from dataclasses import dataclass
+from typing import List, Dict, Set, Any
 from collections import namedtuple
 from asynctest.mock import patch
 from cluster_discovery import ClusterDiscovery, WatchTarget
@@ -36,6 +37,52 @@ TestWatchTarget = namedtuple(
     ]
 )
 
+TEST_RESOURCE_VERSION = "123333"
+
+class TestWatchTarget:
+    def __init__(self, kind, resource_list, watch_events, list_error, stream_error, delay):
+        self.kind = kind
+        self.resource_list = resource_list
+        self.watch_events = watch_events
+        self.list_error = list_error
+        self.stream_error = stream_error
+        self.delay = delay
+
+    async def __call__(self, *arg, **kwargs):
+        """
+        Called when the cluster discovery performs its initial list
+        """
+        if self.list_error:
+            raise self.list_error
+        current_kind = self.kind
+        class ItemWrapper:
+            def __init__(self, data: Dict):
+                self.data = data
+                self._kind = None
+                self.expected_kind = current_kind
+
+            @property
+            def kind(self):
+                self._kind
+
+            @kind.setter
+            def kind(self, kind):
+                self._kind = kind
+
+            def to_dict(self):
+                assert self._kind == self.expected_kind
+                return self.data
+
+        @dataclass
+        class ListResponse:
+            @dataclass
+            class Metadata:
+                resource_version: Any = TEST_RESOURCE_VERSION
+
+            items: List[ItemWrapper]
+            metadata: Metadata = Metadata()
+
+        return ListResponse([ItemWrapper(resource) for resource in self.resource_list])
 
 class KubernetesResourceObject:
     """ Test kubernetes resource object """
@@ -100,10 +147,11 @@ class WatchMock:
         Gets the events stream, raises an error if the
         TestWatchTarget is configured with one
         """
-        if target.error:
-            raise target.error
+        assert resource_version == TEST_RESOURCE_VERSION
+        if target.stream_error:
+            raise target.stream_error
 
-        return EventsGenerator(target.events, delay=target.delay)
+        return EventsGenerator(target.watch_events, delay=target.delay)
 
 
 
@@ -145,7 +193,7 @@ def _patch_cluster_discovery_watch_targets(
     cluster version client with the `fake` ones.
     """
     cluster_discovery.watch_targets = {
-        target.name: WatchTarget(target) for target in watch_targets
+        target.kind: WatchTarget(target) for target in watch_targets
     }
     cluster_discovery.version_client = version_client
 
@@ -220,7 +268,36 @@ def raw_target_events() -> List[List[Dict]]:
     ]
 
 
+@pytest.fixture
+def target_resource_lists() -> List[List[Dict]]:
+    """
+    Generate some resources. Each resources list item is for one `watch target`
+    :return: A list of resources lists
+    """
+    return [
+        [
+            {
+                "a": "A",
+            },
+            {
+                "T1": "T2",
+            }
+        ],
+        [
+            {
+                "x": "y",
+            }
+        ],
+        [
+            {
+                "Q": "T",
+            }
+        ]
+    ]
+
+
 def _get_expected_events(
+        resource_lists,
         raw_events: List[List[WatchKubernetesEvent]],
         cluster_event: KubernetesEvent
 ) -> Set[KubernetesEvent]:
@@ -234,6 +311,10 @@ def _get_expected_events(
         for raw_event in target_events
         if WatchKubernetesEvent.OBJECT_FIELD_KEY in raw_event # skip invalid test events
     }
+    for resource_list in resource_lists:
+        for resource in resource_list:
+            events.add(WatchKubernetesEvent(WatchKubernetesEventType.ADDED, resource))
+
     if cluster_event:
         events.add(cluster_event)
 
@@ -243,9 +324,11 @@ def _get_expected_events(
 async def _run_cluster_discovery(
         cluster_discovery,
         events_manager,
+        resource_lists,
         raw_events,
         cluster_event,
         watch_stream_error=None,
+        resource_list_error=None,
 ):
     """
     Runs the cluster discovery (cluster_discovery.start).
@@ -257,16 +340,27 @@ async def _run_cluster_discovery(
         verify_tasks_finished=False,
         timeout=0.2
     ))[0]
+    expected_events = set()
     if watch_stream_error:
-        expected_events = set()
+        expected_events = _get_expected_events(
+            resource_lists,
+            [],
+            cluster_event
+        )
         if type(watch_stream_error) == Exception:
             # unhandled error, task should be done
             assert task.done()
             assert type(task.exception()) == Exception
         else: # task is expected to run as error should be handled
             assert not task.done()
+    elif resource_list_error:
+        assert task.done()
     else:
-        expected_events = _get_expected_events(raw_events, cluster_event)
+        expected_events = _get_expected_events(
+            resource_lists,
+            raw_events,
+            cluster_event
+        )
         # normal run - cluster discovery shouldn't stop
         assert not task.done()
 
@@ -276,10 +370,12 @@ async def _run_cluster_discovery(
 
 
 async def _test_cluster_discovery(
+        resource_lists,
         raw_events,
         include_cluster_event=True,
         include_invalid_watch_event=False,
         watch_stream_error=None,
+        resource_list_error=None,
 ) -> ClusterDiscovery:
     """
     Tests the cluster discovery run.
@@ -307,7 +403,14 @@ async def _test_cluster_discovery(
 
     # prepare watch targets - with events and possibly an error, if given
     targets = [
-        TestWatchTarget(str(i), raw_events[i], watch_stream_error, 0.01)
+        TestWatchTarget(
+            str(i),
+            resource_lists[i],
+            raw_events[i],
+            resource_list_error,
+            watch_stream_error,
+            0.01
+        )
         for i in range(len(raw_events))
     ]
     # replace watch targets & version cluent at cluster_discovery
@@ -318,9 +421,11 @@ async def _test_cluster_discovery(
     await _run_cluster_discovery(
         cluster_discovery,
         manager,
+        resource_lists,
         raw_events,
         cluster_event=cluster_event,
-        watch_stream_error=watch_stream_error
+        watch_stream_error=watch_stream_error,
+        resource_list_error=resource_list_error,
     )
     return cluster_discovery
 
@@ -328,22 +433,27 @@ async def _test_cluster_discovery(
 @pytest.mark.asyncio
 @patch("kubernetes_asyncio.client")
 @patch("kubernetes_asyncio.watch.Watch", WatchMock)
-async def test_sanity(_, raw_target_events):
+async def test_sanity(_, target_resource_lists, raw_target_events):
     """
     Sanity test - read multiple events
     """
-    await _test_cluster_discovery(raw_target_events, )
+    await _test_cluster_discovery(target_resource_lists, raw_target_events)
 
 
 @pytest.mark.asyncio
 @patch("kubernetes_asyncio.client")
 @patch("kubernetes_asyncio.watch.Watch", WatchMock)
-async def test_invalid_cluster_version(_, raw_target_events):
+async def test_invalid_cluster_version(
+        _,
+        target_resource_lists,
+        raw_target_events
+):
     """
     Tests multiple events with no cluster version info.
     Expects the cluster discovery to run & collect the watch events.
     """
     await _test_cluster_discovery(
+        target_resource_lists,
         raw_target_events,
         include_cluster_event=False
     )
@@ -352,13 +462,14 @@ async def test_invalid_cluster_version(_, raw_target_events):
 @pytest.mark.asyncio
 @patch("kubernetes_asyncio.client")
 @patch("kubernetes_asyncio.watch.Watch", WatchMock)
-async def test_invalid_watch_event(_, raw_target_events):
+async def test_invalid_watch_event(_, target_resource_lists, raw_target_events):
     """
     Tests multiple events with some invalid watch events
     Expects the cluster discovery to run, collect the watch events and
     skip the invalid events.
     """
     await _test_cluster_discovery(
+        target_resource_lists,
         raw_target_events,
         include_invalid_watch_event=True
     )
@@ -367,12 +478,17 @@ async def test_invalid_watch_event(_, raw_target_events):
 @pytest.mark.asyncio
 @patch("kubernetes_asyncio.client")
 @patch("kubernetes_asyncio.watch.Watch", WatchMock)
-async def test_watch_stream_unhandled_error(_, raw_target_events):
+async def test_watch_stream_unhandled_error(
+        _,
+        target_resource_lists,
+        raw_target_events
+):
     """
-    Tests watch stream unhandled error - expect no events and the task to raise
-    the error.
+    Tests watch stream unhandled error - expect only the resource list events
+    and the task to raise the error (and stops running).
     """
     await _test_cluster_discovery(
+        target_resource_lists,
         raw_target_events,
         include_cluster_event=False,
         watch_stream_error=Exception()
@@ -382,12 +498,37 @@ async def test_watch_stream_unhandled_error(_, raw_target_events):
 @pytest.mark.asyncio
 @patch("kubernetes_asyncio.client")
 @patch("kubernetes_asyncio.watch.Watch", WatchMock)
-async def test_watch_stream_handled_error(_, raw_target_events):
+async def test_resource_list_unhandled_error(
+        _,
+        target_resource_lists,
+        raw_target_events
+):
+    """
+    Tests resource list unhandled error - expect no events
+    and the task to raise the error (and stops running).
+    """
+    await _test_cluster_discovery(
+        target_resource_lists,
+        raw_target_events,
+        include_cluster_event=False,
+        resource_list_error=Exception()
+    )
+
+
+@pytest.mark.asyncio
+@patch("kubernetes_asyncio.client")
+@patch("kubernetes_asyncio.watch.Watch", WatchMock)
+async def test_watch_stream_handled_error(
+        _,
+        target_resource_lists,
+        raw_target_events
+):
     """
     Tests watch stream handled error - expect no events and the task should
     still be running.
     """
     await _test_cluster_discovery(
+        target_resource_lists,
         raw_target_events,
         include_cluster_event=False,
         watch_stream_error=socket.gaierror
@@ -407,12 +548,12 @@ async def test_invalid_retry_interval_seconds(_):
 @pytest.mark.asyncio
 @patch("kubernetes_asyncio.client")
 @patch("kubernetes_asyncio.watch.Watch", WatchMock)
-async def test_stop(_, raw_target_events):
+async def test_stop(_, target_resource_lists, raw_target_events):
     """
     Tests cluster_discovery.stop - expect all discover tasks to be done
     """
     cluster_discovery: ClusterDiscovery = (
-        await _test_cluster_discovery(raw_target_events, )
+        await _test_cluster_discovery(target_resource_lists, raw_target_events)
     )
     cluster_discovery.stop()
     # tasks are already cancelled - CancelledError will be raised when
