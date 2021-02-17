@@ -44,6 +44,7 @@ class ClusterDiscovery:
         return {
             "pod": WatchTarget(self.client.list_pod_for_all_namespaces),
             "node": WatchTarget(self.client.list_node),
+            "namespace": WatchTarget(self.client.list_namespace),
             "deployment": WatchTarget(
                 self.apps_api_client.list_deployment_for_all_namespaces,
             ),
