@@ -2,6 +2,7 @@
 Kubernetes events
 """
 import json
+import time
 from typing import Dict
 from enum import Enum
 from encoders import DateTimeEncoder
@@ -55,6 +56,7 @@ class KubernetesEvent:
         """
         self.event_type = event_type
         self.data = data
+        self.timestamp = time.time_ns()
 
     def get_formatted_payload(self):
         """
@@ -72,6 +74,7 @@ class KubernetesEvent:
         return  {
             "metadata": {
                 "kind": self.event_type.value.lower(),
+                "timestamp": self.timestamp,
             },
             "payload": self.get_formatted_payload(),
         }

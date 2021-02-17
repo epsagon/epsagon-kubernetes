@@ -1,13 +1,17 @@
 """
 KubernetesEvent tests
 """
+import time
 import pytest
+from asynctest.mock import patch, MagicMock
 from kubernetes_event import (
     KubernetesEvent,
     WatchKubernetesEvent,
     KubernetesEventType,
     WatchKubernetesEventType,
 )
+
+FAKE_TIMESTAMP = time.time_ns()
 
 @pytest.mark.asyncio
 async def test_initialize():
@@ -32,6 +36,7 @@ def _get_expected_dict(event):
         return {
             "metadata": {
                 "kind": event.event_type.value.lower(),
+                "timestamp": FAKE_TIMESTAMP,
             },
             "payload": event.data,
         }
@@ -39,6 +44,7 @@ def _get_expected_dict(event):
         return {
             "metadata": {
                 "kind": event.event_type.value.lower(),
+                "timestamp": FAKE_TIMESTAMP,
             },
             "payload": {
                 "type": event.watch_event_type.value.lower(),
@@ -50,6 +56,7 @@ def _get_expected_dict(event):
 
 
 @pytest.mark.asyncio
+@patch("time.time_ns", MagicMock(return_value=FAKE_TIMESTAMP))
 async def test_to_dict():
     """ to_dict test """
     data = {
@@ -105,6 +112,7 @@ async def test_watch_get_formatted_payload():
 
 
 @pytest.mark.asyncio
+@patch("time.time_ns", MagicMock(return_value=FAKE_TIMESTAMP))
 async def test_watch_to_dict():
     """ to_dict test """
     data = {
@@ -116,6 +124,7 @@ async def test_watch_to_dict():
 
 
 @pytest.mark.asyncio
+@patch("time.time_ns", MagicMock(return_value=FAKE_TIMESTAMP))
 async def test_watch_get_resource_version():
     """ get_resource_version sanity test """
     resource_version = "3"
@@ -132,6 +141,7 @@ async def test_watch_get_resource_version():
 
 
 @pytest.mark.asyncio
+@patch("time.time_ns", MagicMock(return_value=FAKE_TIMESTAMP))
 async def test_watch_get_resource_version():
     """ get_resource_version test - no resource version """
     data = {
@@ -147,6 +157,7 @@ async def test_watch_get_resource_version():
 
 
 @pytest.mark.asyncio
+@patch("time.time_ns", MagicMock(return_value=FAKE_TIMESTAMP))
 async def test_watch_to_dict():
     """ to_dict test """
     data = {
