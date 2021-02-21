@@ -73,7 +73,7 @@ class KubernetesEvent:
         """
         return  {
             "metadata": {
-                "kind": self.event_type.value.lower(),
+                "kind": self.event_type.value,
                 "timestamp": self.timestamp,
             },
             "payload": self.get_formatted_payload(),
