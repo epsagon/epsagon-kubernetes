@@ -26,18 +26,6 @@ CLUSTER_EVENT = KubernetesEvent(
         "version": TEST_VERSION
     }
 )
-
-# WatchTarget used to test the cluster discovery watchers
-TestWatchTarget = namedtuple(
-    "WatchTarget",
-    [
-        "name", # of the watch target
-        "events", # to be sent from this watch target
-        "error", # to be raised by this watch target
-        "delay", # time to wait between each event
-    ]
-)
-
 TEST_RESOURCE_VERSION = "123333"
 
 class TestWatchTarget:
