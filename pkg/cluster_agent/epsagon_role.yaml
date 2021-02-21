@@ -25,7 +25,7 @@ rules:
   - namespaces
   - configmaps
   verbs: ["get", "list", "watch"]
-- apiGroups: ["extensions", "apps"]
+- apiGroups: ["apps"]
   resources: ["deployments"]
   verbs: ["get", "list", "watch"]
 ---
