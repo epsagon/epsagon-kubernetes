@@ -7,7 +7,6 @@ import pytest
 import kubernetes_asyncio
 from dataclasses import dataclass
 from typing import List, Dict, Set, Any
-from collections import namedtuple
 from asynctest.mock import patch
 from cluster_discovery import ClusterDiscovery, WatchTarget
 from kubernetes_event import (
