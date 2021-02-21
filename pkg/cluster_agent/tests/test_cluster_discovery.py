@@ -28,7 +28,7 @@ CLUSTER_EVENT = KubernetesEvent(
 )
 TEST_RESOURCE_VERSION = "123333"
 
-class TestWatchTarget:
+class MockWatchTarget:
     def __init__(self, kind, resource_list, watch_events, list_error, stream_error, delay):
         self.kind = kind
         self.resource_list = resource_list
@@ -131,10 +131,10 @@ class WatchMock:
     """
     A mock class for the kubernetes client Watch class
     """
-    def stream(self, target: TestWatchTarget, resource_version=None):
+    def stream(self, target: MockWatchTarget, resource_version=None):
         """
         Gets the events stream, raises an error if the
-        TestWatchTarget is configured with one
+        MockWatchTarget is configured with one
         """
         assert resource_version == TEST_RESOURCE_VERSION
         if target.stream_error:
@@ -174,7 +174,7 @@ class ClientMock:
 
 def _patch_cluster_discovery_watch_targets(
         cluster_discovery: ClusterDiscovery,
-        watch_targets: List[TestWatchTarget],
+        watch_targets: List[MockWatchTarget],
         version_client
 ):
     """
@@ -392,7 +392,7 @@ async def _test_cluster_discovery(
 
     # prepare watch targets - with events and possibly an error, if given
     targets = [
-        TestWatchTarget(
+        MockWatchTarget(
             str(i),
             resource_lists[i],
             raw_events[i],
