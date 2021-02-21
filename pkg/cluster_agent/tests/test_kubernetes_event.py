@@ -47,7 +47,7 @@ def _get_expected_dict(event):
                 "timestamp": FAKE_TIMESTAMP,
             },
             "payload": {
-                "type": event.watch_event_type.value.lower(),
+                "type": event.watch_event_type.value,
                 "object": event.data,
             }
         }
@@ -106,7 +106,7 @@ async def test_watch_get_formatted_payload():
     event_type = WatchKubernetesEventType.ADDED
     event = WatchKubernetesEvent(event_type, data)
     assert event.get_formatted_payload() == {
-        "type": event_type.value.lower(),
+        "type": event_type.value,
         "object": data,
     }
 

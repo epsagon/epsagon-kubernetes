@@ -18,6 +18,7 @@ from kubernetes_event import (
 )
 from conftest import run_coroutines_with_timeout
 
+
 TEST_VERSION = "v1.18"
 CLUSTER_EVENT = KubernetesEvent(
     KubernetesEventType.CLUSTER,

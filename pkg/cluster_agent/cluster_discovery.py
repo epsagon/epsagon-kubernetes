@@ -42,10 +42,10 @@ class ClusterDiscovery:
         Creates watch targets - all pods, nodes & deployments.
         """
         return {
-            "pod": WatchTarget(self.client.list_pod_for_all_namespaces),
-            "node": WatchTarget(self.client.list_node),
-            "namespace": WatchTarget(self.client.list_namespace),
-            "deployment": WatchTarget(
+            "Pod": WatchTarget(self.client.list_pod_for_all_namespaces),
+            "Node": WatchTarget(self.client.list_node),
+            "Namespace": WatchTarget(self.client.list_namespace),
+            "Deployment": WatchTarget(
                 self.apps_api_client.list_deployment_for_all_namespaces,
             ),
         }

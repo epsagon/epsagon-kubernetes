@@ -31,8 +31,8 @@ class KubernetesEventType(Enum):
     """
     General kubernetes event types, used by Epsagon
     """
-    CLUSTER = "CLUSTER"
-    WATCH = "WATCH"
+    CLUSTER = "cluster"
+    WATCH = "watch"
 
 
 class WatchKubernetesEventType(Enum):
@@ -91,7 +91,9 @@ class KubernetesEvent:
 
     def __hash__(self):
         """ gets the item hash """
-        return hash(str(self.to_dict()))
+        data = self.to_dict()
+        data["metadata"].pop("timestamp")
+        return hash(str(data))
 
 
 class WatchKubernetesEvent(KubernetesEvent):
@@ -144,7 +146,7 @@ class WatchKubernetesEvent(KubernetesEvent):
         Gets the watch kubernetes event data formatted.
         """
         return {
-            "type": self.watch_event_type.value.lower(),
+            "type": self.watch_event_type.value,
             "object": super().get_formatted_payload()
         }
 
@@ -160,4 +162,4 @@ class WatchKubernetesEvent(KubernetesEvent):
 
     def __hash__(self):
         """ gets the item hash """
-        return hash(str(self.to_dict()))
+        return super().__hash__()
