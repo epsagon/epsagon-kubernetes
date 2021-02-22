@@ -2,6 +2,7 @@
 Async Epsagon client
 """
 from http import HTTPStatus
+from aiohttp.helpers import BasicAuth
 from aiohttp.client_exceptions import ClientError
 from aiohttp_retry import RetryClient, ExponentialRetry
 
@@ -15,19 +16,6 @@ class EpsagonClient:
     """
 
     DEFAULT_RETRY_ATTEMPTS = 3
-
-    async def _initialize_client(self):
-        """
-        Initializes the client session.
-        """
-        self.client = RetryClient(
-            headers={
-                "Authorization": f"Basic {self.epsagon_token}",
-                "Content-Type": "application/json",
-            },
-            retry_options=self.retry_options,
-            raise_for_status=True
-        )
 
     @classmethod
     async def create(cls, epsagon_token, retry_attempts=DEFAULT_RETRY_ATTEMPTS):
@@ -44,8 +32,8 @@ class EpsagonClient:
             exceptions=(ClientError,)
         )
         self.client = RetryClient(
+            auth=BasicAuth(login=self.epsagon_token),
             headers={
-                "Authorization": f"Basic {self.epsagon_token}",
                 "Content-Type": "application/json",
             },
             retry_options=retry_options,
