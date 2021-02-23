@@ -43,11 +43,11 @@ class ClusterDiscovery:
         """
         return {
             "Pod": WatchTarget(self.client.list_pod_for_all_namespaces),
-            "Node": WatchTarget(self.client.list_node),
-            "Namespace": WatchTarget(self.client.list_namespace),
-            "Deployment": WatchTarget(
-                self.apps_api_client.list_deployment_for_all_namespaces,
-            ),
+            #"Node": WatchTarget(self.client.list_node),
+            #"Namespace": WatchTarget(self.client.list_namespace),
+            #"Deployment": WatchTarget(
+            #    self.apps_api_client.list_deployment_for_all_namespaces,
+            #),
         }
 
     def __init__(
@@ -92,12 +92,13 @@ class ClusterDiscovery:
         """
         response = await target()
         for item in response.items:
+            print(item.to_dict())
             item.kind = kind
             kubernetes_event = WatchKubernetesEvent(
                 WatchKubernetesEventType.ADDED,
                 item.to_dict()
             )
-            await self.event_handler(kubernetes_event)
+            #await self.event_handler(kubernetes_event)
 
         return response.metadata.resource_version
 
@@ -113,7 +114,7 @@ class ClusterDiscovery:
                     raise ErrorWatchEventException("Received an error event")
 
                 kubernetes_event = WatchKubernetesEvent.from_watch_dict(event)
-                await self.event_handler(kubernetes_event)
+                #await self.event_handler(kubernetes_event)
                 self._update_resource_version(
                     kind,
                     target,
