@@ -5,7 +5,8 @@ import json
 import base64
 import zlib
 from typing import List
-from kubernetes_event import KubernetesEvent, KubernetesEventEncoder
+from encoders import DateTimeEncoder
+from kubernetes_event import KubernetesEvent
 
 class EventsSender:
     """
@@ -28,7 +29,9 @@ class EventsSender:
         """
         if not events:
             return
-        events_json = json.dumps(events, cls=KubernetesEventEncoder)
+
+        events = [event.to_dict() for event in events]
+        events_json = json.dumps(events, cls=DateTimeEncoder)
         compressed_data = base64.b64encode(
             zlib.compress(events_json.encode("utf-8"))
         ).decode("utf-8")
@@ -39,4 +42,4 @@ class EventsSender:
         }
 
 
-        await self.client.post(self.url, data_to_send)
+        await self.client.post(self.url, json.dumps(data_to_send))

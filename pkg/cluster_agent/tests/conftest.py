@@ -25,7 +25,11 @@ async def run_coroutines_with_timeout(
     :return: a list of the corresponding coroutines created tasks
     """
     tasks = [asyncio.ensure_future(coroutine) for coroutine in coroutines]
-    finished, _ = await asyncio.wait(tasks, timeout=timeout)
+    finished, _ = await asyncio.wait(
+        tasks,
+        timeout=timeout,
+        return_when=asyncio.ALL_COMPLETED
+    )
     if verify_tasks_finished:
         assert len(finished) == len(tasks)
 

@@ -31,8 +31,8 @@ class KubernetesEventType(Enum):
     """
     General kubernetes event types, used by Epsagon
     """
-    CLUSTER = "CLUSTER"
-    WATCH = "WATCH"
+    CLUSTER = "cluster"
+    WATCH = "watch"
 
 
 class WatchKubernetesEventType(Enum):
@@ -74,7 +74,7 @@ class KubernetesEvent:
         return  {
             "metadata": {
                 "kind": self.event_type.value,
-                "timestamp": self.timestamp
+                "timestamp": self.timestamp,
             },
             "payload": self.get_formatted_payload(),
         }
@@ -91,14 +91,17 @@ class KubernetesEvent:
 
     def __hash__(self):
         """ gets the item hash """
-        return hash(str(self.to_dict()))
+        data = self.to_dict()
+        data["metadata"].pop("timestamp")
+        return hash(str(data))
 
 
 class WatchKubernetesEvent(KubernetesEvent):
     """
     Kubernetes watch event
     """
-    EVENT_FIELDS = ("raw_object", "type")
+    OBJECT_FIELD_KEY = "object"
+    EVENT_FIELDS = (OBJECT_FIELD_KEY, "type")
 
     def __init__(
             self,
@@ -121,7 +124,7 @@ class WatchKubernetesEvent(KubernetesEvent):
             if field not in raw_data:
                 raise InvalidWatchEventException(f"Missing `{field}` in event")
 
-        obj = raw_data["raw_object"]
+        obj = raw_data[cls.OBJECT_FIELD_KEY].to_dict()
         event_type = raw_data["type"]
         if event_type not in (
             current_type.value for current_type in WatchKubernetesEventType
@@ -130,6 +133,13 @@ class WatchKubernetesEvent(KubernetesEvent):
                 f"Unsupported `{event_type}` watch event type"
             )
         return cls(WatchKubernetesEventType(event_type), obj)
+
+    def get_resource_version(self):
+        """
+        Gets the watch kubernetes object resource version.
+        If cannot extract resource version, returns None
+        """
+        return self.data.get("metadata", {}).get("resource_version")
 
     def get_formatted_payload(self):
         """
@@ -142,13 +152,14 @@ class WatchKubernetesEvent(KubernetesEvent):
 
     def __eq__(self, other):
         """
-        Checks equity by comapring the event type, data and the watch
-        specific event type
+        Checks equity by comapring the data and the watch specific event type
         """
         return (
-            super() == other and self.watch_event_type == other.watch_event_type
+            type(self) == type(other) and
+            self.watch_event_type == other.watch_event_type and
+            self.data == other.data
         )
 
     def __hash__(self):
         """ gets the item hash """
-        return hash(str(self.to_dict()))
+        return super().__hash__()

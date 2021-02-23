@@ -7,6 +7,7 @@ import zlib
 import pytest
 from typing import Dict, List
 from asynctest.mock import patch, MagicMock
+from encoders import DateTimeEncoder
 from epsagon_client import EpsagonClient
 from events_sender import EventsSender
 from kubernetes_event import (
@@ -14,7 +15,6 @@ from kubernetes_event import (
     WatchKubernetesEvent,
     KubernetesEventType,
     WatchKubernetesEventType,
-    KubernetesEventEncoder,
 )
 
 TEST_URL = "http://testurl/1"
@@ -29,7 +29,8 @@ def _get_expected_data(
     """
     Gets the expected data to be sent given events list and events sender
     """
-    events_json = json.dumps(events, cls=KubernetesEventEncoder)
+    events = [event.to_dict() for event in events]
+    events_json = json.dumps(events, cls=DateTimeEncoder)
     compressed_data = base64.b64encode(
         zlib.compress(events_json.encode("utf-8"))
     ).decode("utf-8")
@@ -38,7 +39,7 @@ def _get_expected_data(
         "cluster_name": events_sender.cluster_name,
         "data": compressed_data,
     }
-    return data_to_send
+    return json.dumps(data_to_send)
 
 
 @pytest.mark.asyncio
