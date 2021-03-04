@@ -25,6 +25,12 @@ CLUSTER_EVENT = KubernetesEvent(
         "version": TEST_VERSION
     }
 )
+INVALID_CLUSTER_EVENT = KubernetesEvent(
+    KubernetesEventType.CLUSTER,
+    {
+        "version": None,
+    }
+)
 TEST_RESOURCE_VERSION = "123333"
 
 class MockWatchTarget:
@@ -328,7 +334,6 @@ async def _run_cluster_discovery(
         verify_tasks_finished=False,
         timeout=0.2
     ))[0]
-    expected_events = set()
     if watch_stream_error:
         expected_events = _get_expected_events(
             resource_lists,
@@ -342,6 +347,11 @@ async def _run_cluster_discovery(
         else: # task is expected to run as error should be handled
             assert not task.done()
     elif resource_list_error:
+        expected_events = _get_expected_events(
+            [],
+            [],
+            cluster_event
+        )
         assert task.done()
     else:
         expected_events = _get_expected_events(
@@ -360,7 +370,7 @@ async def _run_cluster_discovery(
 async def _test_cluster_discovery(
         resource_lists,
         raw_events,
-        include_cluster_event=True,
+        invalid_cluster_event=False,
         include_invalid_watch_event=False,
         watch_stream_error=None,
         resource_list_error=None,
@@ -368,19 +378,19 @@ async def _test_cluster_discovery(
     """
     Tests the cluster discovery run.
     :param raw_events: to be read by the cluster discovery watch tasks
-    :param include_cluster_event: indicates whether should expect a cluster info
-    event or should raise an error for this request.
+    :param invalid_cluster_event: indicates whether should expect a
+    valid/invalid cluster event
     :param include_invalid_watch_event: indicates whetherto include an invalid
     watch events
     :param watch_stream_error: error to be raised when the cluster discovery
     tries to watch its targets.
     :return: the cluster discovery object
     """
-    cluster_event = None
-    cluster_error = Exception()
-    if include_cluster_event:
-        cluster_event = CLUSTER_EVENT
-        cluster_error = None
+    cluster_event = CLUSTER_EVENT
+    cluster_error = None
+    if invalid_cluster_event:
+        cluster_event = INVALID_CLUSTER_EVENT
+        cluster_error = Exception()
 
     version_client = ClientMock(error=cluster_error)
     manager = EventsManager()
@@ -443,7 +453,7 @@ async def test_invalid_cluster_version(
     await _test_cluster_discovery(
         target_resource_lists,
         raw_target_events,
-        include_cluster_event=False
+        invalid_cluster_event=True
     )
 
 
@@ -478,7 +488,7 @@ async def test_watch_stream_unhandled_error(
     await _test_cluster_discovery(
         target_resource_lists,
         raw_target_events,
-        include_cluster_event=False,
+        invalid_cluster_event=False,
         watch_stream_error=Exception()
     )
 
@@ -498,7 +508,7 @@ async def test_resource_list_unhandled_error(
     await _test_cluster_discovery(
         target_resource_lists,
         raw_target_events,
-        include_cluster_event=False,
+        invalid_cluster_event=False,
         resource_list_error=Exception()
     )
 
@@ -518,7 +528,7 @@ async def test_watch_stream_handled_error(
     await _test_cluster_discovery(
         target_resource_lists,
         raw_target_events,
-        include_cluster_event=False,
+        invalid_cluster_event=False,
         watch_stream_error=socket.gaierror
     )
 

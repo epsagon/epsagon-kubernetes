@@ -164,24 +164,25 @@ class ClusterDiscovery:
             if not task.done():
                 task.cancel()
 
-    async def _get_cluster_version(self):
+    async def _collect_cluster_info(self):
         """
-        Gets the cluster version
+        Collects the cluster info
         """
         try:
+            version = None
             try:
                 version: str = (await self.version_client.get_code()).git_version
             except Exception as exception:
                 logging.debug("Could not extract cluster version")
                 logging.error(str(exception))
                 logging.error(format_exc())
-                return
             try:
-                data = { "version": version }
+                data = {"version": version}
                 kubernetes_event = KubernetesEvent(KubernetesEventType.CLUSTER, data)
                 await self.event_handler(kubernetes_event)
             except KubernetesEventException:
-                logging.debug("Failed to retrieve cluster version")
+                logging.debug("Failed to create cluster event")
+                raise
         except asyncio.CancelledError:
             pass
 
@@ -195,13 +196,11 @@ class ClusterDiscovery:
         after RETRY_INTERVAL_SECONDS.
         """
         try:
+            await self._collect_cluster_info()
             self.discover_tasks = [
                 asyncio.ensure_future(self._start_watch(kind, target))
                 for kind, target in self.watch_targets.items()
             ]
-            self.discover_tasks.append(
-                asyncio.ensure_future(self._get_cluster_version())
-            )
             await asyncio.gather(
                 *self.discover_tasks,
                 loop = asyncio.get_event_loop()
