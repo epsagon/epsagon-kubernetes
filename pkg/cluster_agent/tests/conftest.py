@@ -24,7 +24,7 @@ async def run_coroutines_with_timeout(
     :param timeout: in seconds, to wait for all the coroutines to finish.
     :return: a list of the corresponding coroutines created tasks
     """
-    tasks = [asyncio.ensure_future(coroutine) for coroutine in coroutines]
+    tasks = [asyncio.create_task(coroutine) for coroutine in coroutines]
     finished, _ = await asyncio.wait(
         tasks,
         timeout=timeout,

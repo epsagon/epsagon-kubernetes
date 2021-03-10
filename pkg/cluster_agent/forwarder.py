@@ -14,6 +14,7 @@ class Forwarder:
     """
     DEFAULT_MAX_WORKERS = 5
     DEFAULT_MAX_EVENTS_TO_READ = 100
+    DEFAULT_GET_EVENTS_TIMEOUT = 1
 
     def __init__(
             self,
@@ -42,7 +43,54 @@ class Forwarder:
         """
         Forwards the given events list
         """
-        await self.events_sender.send_events(events)
+        try:
+            await self.events_sender.send_events(events)
+        except asyncio.CancelledError:
+            pass
+
+    def _stop_all_workers(self):
+        """
+        Stops all workers
+        """
+        for worker in self.running_workers:
+            if not worker.done():
+                worker.cancel()
+
+        self.running_workers = set()
+
+    def _check_failed_workers(self, workers):
+        """
+        Checks the finished workers status. If any worker had an error, then
+        stopping the rest of the workers and raising an error.
+        """
+        for task in workers:
+            task_exception = task.exception()
+            if task_exception:
+                self._stop_all_workers()
+                raise task_exception
+
+    def _get_finished_workers(self):
+        """
+        Gets the running workers tasks
+        """
+        return [task for task in self.running_workers if task.done()]
+
+    async def _get_next_events(self, timeout: int = None) -> List[KubernetesEvent]:
+        """
+        Gets the next events - returns until there's a new event to read.
+        If timeout is given, then returning after the given timeout.
+        :param timeout: timeout for the get events operation, in seconds.
+        :return: List of the read kubernetes events. If returned due to timeout
+        then an empty list is returned.
+        """
+        try:
+            events: List[KubernetesEvent] = await asyncio.wait_for(
+                self.events_manager.get_events(self.max_events_to_read),
+                timeout=timeout
+            )
+            return events
+        except asyncio.TimeoutError:
+            return []
 
     async def start(self):
         """
@@ -52,12 +100,14 @@ class Forwarder:
         """
         try:
             while True:
-                events: List[KubernetesEvent] = (
-                    await self.events_manager.get_events(
-                        self.max_events_to_read
-                ))
+                events: List[KubernetesEvent] = await self._get_next_events(
+                    timeout=self.DEFAULT_GET_EVENTS_TIMEOUT
+                )
+                self._check_failed_workers(self._get_finished_workers())
+                if not events:
+                    continue
                 if len(self.running_workers) < self.max_workers_count:
-                    self.running_workers.add(asyncio.ensure_future(
+                    self.running_workers.add(asyncio.create_task(
                         self._forward_events(events)
                     ))
                 else:
@@ -65,9 +115,11 @@ class Forwarder:
                         self.running_workers,
                         return_when=asyncio.FIRST_COMPLETED
                     )
+                    self._check_failed_workers(finished)
                     self.running_workers = unfinished
-                    self.running_workers.add(asyncio.ensure_future(
+                    self.running_workers.add(asyncio.create_task(
                         self._forward_events(events)
                     ))
         except asyncio.CancelledError:
-            pass
+            self._stop_all_workers()
+

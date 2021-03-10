@@ -40,6 +40,4 @@ class EventsSender:
             "cluster_name": self.cluster_name,
             "data": compressed_data,
         }
-
-
         await self.client.post(self.url, json.dumps(data_to_send))
