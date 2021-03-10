@@ -7,7 +7,7 @@
 
 # Epsagon Kubernetes Cluster Agent
 
-![Version: 1.0.1](https://img.shields.io/badge/Version-1.0.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.0.2](https://img.shields.io/badge/Version-1.0.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 The Epsagon kuberenetes cluster agent collect & watches your cluster resources. All collected events are being sent to [Epsagon](https://dashboard.epsagon.com/).
 ## Documentation
