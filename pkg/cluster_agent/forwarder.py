@@ -65,10 +65,7 @@ class Forwarder:
         """
         for task in workers:
             task_exception = task.exception()
-            if (
-                    task_exception and
-                    not isinstance(task_exception, asyncio.CancelledError)
-            ):
+            if task_exception:
                 self._stop_all_workers()
                 raise task_exception
 
