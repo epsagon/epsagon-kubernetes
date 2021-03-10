@@ -35,21 +35,27 @@ class EventsManagerMock(InMemoryEventsManager):
 
 class EventsSenderMock:
     """ EventsSender mock, verifies max worker senders """
-    def __init__(self, expected_max_workers: int):
+    def __init__(self, expected_max_workers: int, error: Exception = None):
         """
         :param expected_max_workers: the expected max size of workers used
         to send events
+        :param error: to raise when send_events is called
         """
         self.expected_max_workers = expected_max_workers
         self.current_workers_count = 0
         self.events = set()
+        self.error = error
 
     async def send_events(self, events: List[KubernetesEvent]):
         """
         Asserts the current number of workers <= expected max workers and saves
         the given events.
         when called, using asyncio.sleep to simulate a "real" send scenario
+        If self.error then raising self.error immediately
         """
+        if self.error:
+            raise self.error
+
         self.current_workers_count += 1
         assert self.current_workers_count <= self.expected_max_workers
         for event in events:
@@ -101,6 +107,29 @@ async def test_sanity():
     assert not forwarder_task.done()
     forwarder_task.cancel()
     assert set(events) == events_sender.events
+
+
+@pytest.mark.asyncio
+async def test_send_events_failure():
+    """
+    send events failure test - runs forwarder and send_events raises an error,
+    expects the forwarder task to end and raise the send events error.
+    """
+    events_manager = EventsManagerMock(DEFAULT_MAX_EVENTS_TO_READ)
+    error = Exception("test error")
+    events_sender = EventsSenderMock(DEFAULT_MAX_WORKERS, error=error)
+    events: List[KubernetesEvent] = _generate_kubernetes_events(DEFAULT_EVENTS_COUNT)
+    events_write_task, forwarder_task = await run_coroutines_with_timeout(
+        (
+            _write_events(events, events_manager),
+            Forwarder(events_manager, events_sender).start()
+        ),
+        verify_tasks_finished=False,
+        timeout=0.5,
+    )
+    assert events_write_task.done()
+    assert forwarder_task.done()
+    assert forwarder_task.exception() == error
 
 
 @pytest.mark.asyncio

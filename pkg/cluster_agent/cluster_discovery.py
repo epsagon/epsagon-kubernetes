@@ -198,7 +198,7 @@ class ClusterDiscovery:
         try:
             await self._collect_cluster_info()
             self.discover_tasks = [
-                asyncio.ensure_future(self._start_watch(kind, target))
+                asyncio.create_task(self._start_watch(kind, target))
                 for kind, target in self.watch_targets.items()
             ]
             await asyncio.gather(
@@ -214,7 +214,7 @@ class ClusterDiscovery:
             await asyncio.sleep(self.retry_interval_seconds)
             await self.start()
         except asyncio.CancelledError:
-            self._stop_all()
+            self.stop()
 
 
     def stop(self):

@@ -31,7 +31,7 @@ def _cancel_tasks(tasks):
     Cancels the given tasks
     """
     for task in tasks:
-        if not task.cancelled():
+        if not task.done():
             task.cancel()
 
 
@@ -55,8 +55,8 @@ async def run():
     while True:
         try:
             tasks = [
-                asyncio.ensure_future(forwarder.start()),
-                asyncio.ensure_future(cluster_discovery.start())
+                asyncio.create_task(forwarder.start()),
+                asyncio.create_task(cluster_discovery.start())
             ]
             await asyncio.gather(*tasks)
         except (
