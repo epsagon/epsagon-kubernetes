@@ -1,0 +1,19 @@
+name: Create Cluster
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches:
+      - main
+
+jobs:
+  ci-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create k8s Kind Cluster
+        uses: helm/kind-action@v1.1.0
+
+      - name: test
+        run: sleep 10 && echo "test"
+
