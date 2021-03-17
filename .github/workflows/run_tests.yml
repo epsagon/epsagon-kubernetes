@@ -14,10 +14,12 @@ jobs:
       - name: Create k8s Kind Cluster
         uses: helm/kind-action@v1.1.0
 
+      - uses: actions/checkout@v2
+
       - name: test-docker
         run: which docker
         working-directory: ./pkg/cluster_agent
-        
+
       - name: build-image
         run: docker build . -t epsagon/cluster-agent:test -f ./build/Dockerfile
         working-directory: ./pkg/cluster_agent
