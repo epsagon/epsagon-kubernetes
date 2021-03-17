@@ -15,16 +15,19 @@ jobs:
         uses: helm/kind-action@v1.1.0
 
       - name: build-image
-        run: docker build pkg/cluster_agent -t epsagon/cluster-agent:test -f pkg/cluster_agent/build/Dockerfile
+        run: docker build . -t epsagon/cluster-agent:test -f ./build/Dockerfile
+        working-directory: ./pkg/cluster_agent
 
       - name: load-image-to-kind
         run: kind load docker-image epsagon/cluster-agent:test
 
       - name: deploy-epsagon-role
-        run: kubectl apply -f pkg/cluster_agent/epsagon_role.yaml
+        run: kubectl apply -f ./epsagon_role.yaml
+        working-directory: ./pkg/cluster_agent
 
       - name: deploy-agent-deployment
-        run: kubectl apply -f pkg/cluster_agent/tests/test_agent_deployment.yaml
+        run: kubectl apply -f ./tests/test_agent_deployment.yaml
+        working-directory: ./pkg/cluster_agent
 
       - name: verify-agent-container
         run: sleep 5 && kubectl -n epsagon-monitoring get pods | grep cluster-agent
