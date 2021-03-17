@@ -26,7 +26,7 @@ jobs:
       - name: test
         timeout-minutes: 1
         working-directory: ./pkg/cluster_agent
-        run: pytest ./tests/ut
+        run: python -m pytest ./tests/ut
 
 
   agent-sanity-test:
