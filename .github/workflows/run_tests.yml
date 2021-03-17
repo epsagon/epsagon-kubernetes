@@ -8,12 +8,23 @@ on:
       - main
 
 jobs:
-  ci-tests:
+  agent-sanity-test:
     runs-on: ubuntu-latest
     steps:
       - name: Create k8s Kind Cluster
         uses: helm/kind-action@v1.1.0
 
-      - name: test
-        run: sleep 10 && echo "test"
+      - name: build-image
+        run: docker build . -t epsagon/cluster-agent:test
 
+      - name: load-image-to-kind
+        run: kind load docker-image epsagon/cluster-agent:test
+
+      - name: deploy-epsagon-role
+        run: kubectl apply -f pkg/cluster_agent/epsagon_role.yaml
+
+      - name: deploy-agent-deployment
+        run: kubectl apply -f pkg/cluster_agent/tests/test_agent_deployment.yaml
+
+      - name: verify-agent-container
+        run: sleep 5 && kubectl -n epsagon-monitoring get pods | grep cluster-agent
