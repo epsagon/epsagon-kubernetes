@@ -163,6 +163,9 @@ class ClusterDiscovery:
         for task in self.discover_tasks:
             if not task.done():
                 task.cancel()
+            elif not task.cancelled():
+                task.exception()
+
 
     async def _collect_cluster_info(self):
         """

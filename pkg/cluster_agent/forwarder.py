@@ -55,7 +55,8 @@ class Forwarder:
         for worker in self.running_workers:
             if not worker.done():
                 worker.cancel()
-
+            elif not worker.cancelled():
+                worker.exception()
         self.running_workers = set()
 
     def _check_failed_workers(self, workers):
