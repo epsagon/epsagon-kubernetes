@@ -16,7 +16,8 @@ jobs:
 
       - name: test-docker
         run: which docker
-
+        working-directory: ./pkg/cluster_agent
+        
       - name: build-image
         run: docker build . -t epsagon/cluster-agent:test -f ./build/Dockerfile
         working-directory: ./pkg/cluster_agent
