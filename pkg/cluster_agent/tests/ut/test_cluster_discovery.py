@@ -15,7 +15,7 @@ from kubernetes_event import (
     KubernetesEventType,
     WatchKubernetesEventType,
 )
-from conftest import run_coroutines_with_timeout
+from .conftest import run_coroutines_with_timeout
 
 
 TEST_VERSION = "v1.18"

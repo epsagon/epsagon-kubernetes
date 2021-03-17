@@ -5,7 +5,7 @@ import asyncio
 import pytest
 from events_manager import InMemoryEventsManager
 from kubernetes_event import WatchKubernetesEvent, WatchKubernetesEventType
-from conftest import run_coroutines_with_timeout
+from .conftest import run_coroutines_with_timeout
 
 DEFAULT_MAX_SIZE = 2
 

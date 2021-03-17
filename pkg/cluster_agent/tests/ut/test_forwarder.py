@@ -11,7 +11,7 @@ from kubernetes_event import (
     WatchKubernetesEvent,
     WatchKubernetesEventType,
 )
-from conftest import run_coroutines_with_timeout
+from .conftest import run_coroutines_with_timeout
 
 DEFAULT_MAX_EVENTS_TO_READ = Forwarder.DEFAULT_MAX_EVENTS_TO_READ
 DEFAULT_MAX_WORKERS = Forwarder.DEFAULT_MAX_WORKERS
