@@ -21,12 +21,13 @@ jobs:
         timeout-minutes: 5
         working-directory: ./pkg/cluster_agent
         run: |
+          pip install pip==21.0.1
           pip install -r requirements-dev.txt
           pip install -r requirements.txt
       - name: test
         timeout-minutes: 1
         working-directory: ./pkg/cluster_agent
-        run: pytest
+        run: pytest ./tests/ut
 
 
   agent-sanity-test:
