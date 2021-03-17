@@ -15,7 +15,7 @@ jobs:
         uses: helm/kind-action@v1.1.0
 
       - name: build-image
-        run: docker build . -t epsagon/cluster-agent:test
+        run: docker build pkg/cluster_agent -t epsagon/cluster-agent:test -f pkg/cluster_agent/build/Dockerfile
 
       - name: load-image-to-kind
         run: kind load docker-image epsagon/cluster-agent:test
