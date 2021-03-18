@@ -66,11 +66,8 @@ jobs:
     timeout-minutes: 10
     runs-on: ubuntu-latest
     outputs:
-      matrixDefault: ${{ steps.set-matrix.outputs.matrixDefault }}
-      matrixNode: ${{ steps.set-matrix.outputs.matrixNode }}
-      matrixES: ${{ steps.set-matrix.outputs.matrixES }}
-      matrixNoCode: ${{ steps.set-matrix.outputs.matrixNoCode }}
-      matrixCustomPackage: ${{ steps.set-matrix.outputs.matrixCustomPackage }}
+      matrixTestPath: ${{ steps.set-matrix.outputs.matrixTestPath }}
+      matrixClusterConfig: ${{ steps.set-matrix.outputs.ClusterConfig }}
     steps:
       - uses: actions/checkout@v2
       - name: set-matrix
