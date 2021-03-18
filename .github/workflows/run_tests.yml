@@ -77,8 +77,8 @@ jobs:
         id: set-matrix
         working-directory: ./pkg/cluster_agent
         run: |
-          echo "::set-output name=matrixTestPath::`python ./cicd_utils/generate_test_matrix.py test-path`
-          echo "::set-output name=matrixClusterConfig::`python ./cicd_utils/generate_test_matrix.py cluster-config-file`
+          echo "::set-output name=matrixTestPath::`python ./cicd/generate_test_matrix.py test-path`
+          echo "::set-output name=matrixClusterConfig::`python ./cicd/generate_test_matrix.py cluster-config-file`
 
   system_tests:
     runs-on: ubuntu-latest
