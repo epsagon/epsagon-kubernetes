@@ -60,3 +60,75 @@ jobs:
 
       - name: test-agent-container-running
         run: sleep 10 && kubectl -n epsagon-monitoring get pods | grep cluster-agent | grep Running
+
+
+  system_test_install:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    outputs:
+      matrixDefault: ${{ steps.set-matrix.outputs.matrixDefault }}
+      matrixNode: ${{ steps.set-matrix.outputs.matrixNode }}
+      matrixES: ${{ steps.set-matrix.outputs.matrixES }}
+      matrixNoCode: ${{ steps.set-matrix.outputs.matrixNoCode }}
+      matrixCustomPackage: ${{ steps.set-matrix.outputs.matrixCustomPackage }}
+    steps:
+      - name: set-matrix
+        id: set-matrix
+        working-directory: ./pkg/cluster_agent
+        run: |
+          echo "::set-output name=matrixTestPath::`python ./cicd_utils/generate_test_matrix.py test-path`
+          echo "::set-output name=matrixClusterConfig::`python ./cicd_utils/generate_test_matrix.py cluster-config-file`
+
+  system_tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: system_test_install
+    strategy:
+      fail-fast: false
+      matrix:
+        cluster_config: ${{ fromJson(needs.install.outputs.matrixClusterConfig) }}
+        test_path: ${{ fromJson(needs.install.outputs.matrixTestPath) }}
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Create k8s Kind Cluster
+        uses: helm/kind-action@v1.1.0
+        working-directory: ./pkg/cluster_agent
+        with:
+          cluster_name: test-cluster
+          config: ${{ matrix.cluster_config }}
+
+      - name: test-docker
+        run: which docker
+        working-directory: ./pkg/cluster_agent
+
+      - name: build-image
+        run: docker build . -t epsagon/cluster-agent:test -f ./build/Dockerfile
+        working-directory: ./pkg/cluster_agent
+
+      - name: load-image-to-kind
+        run: kind load docker-image epsagon/cluster-agent:test --name test-cluster
+
+      - name: deploy-epsagon-role
+        run: kubectl apply -f ./epsagon_role.yaml
+        working-directory: ./pkg/cluster_agent
+
+      - name: deploy-agent-deployment
+        run: kubectl apply -f ./tests/test_agent_deployment.yaml
+        working-directory: ./pkg/cluster_agent
+
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+
+      - name: Install dependencies # no if here since we still need to install from pip cache
+        timeout-minutes: 5
+        working-directory: ./pkg/cluster_agent
+        run: |
+          pip install -r requirements-dev.txt
+          pip install -r requirements.txt
+      - name: test
+        timeout-minutes: 1
+        working-directory: ./pkg/cluster_agent
+        run: python -m pytest ${{ matrix.test_path }}
