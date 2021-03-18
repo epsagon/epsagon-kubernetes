@@ -93,10 +93,9 @@ jobs:
       - uses: actions/checkout@v2
       - name: Create k8s Kind Cluster
         uses: helm/kind-action@v1.1.0
-        working-directory: ./pkg/cluster_agent
         with:
           cluster_name: test-cluster
-          config: ${{ matrix.cluster_config }}
+          config: ./pkg/cluster_agent/${{ matrix.cluster_config }}
 
       - name: test-docker
         run: which docker
