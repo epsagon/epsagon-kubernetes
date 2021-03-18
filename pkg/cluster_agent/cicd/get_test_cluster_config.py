@@ -19,7 +19,7 @@ def main(test_directory):
     if os.path.exists(file_path):
         cluster_config_path = file_path
 
-    print(json.dumps(cluster_config_path))
+    print(cluster_config_path)
 
 
 if __name__ == '__main__':
