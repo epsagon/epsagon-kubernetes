@@ -75,7 +75,6 @@ jobs:
         working-directory: ./pkg/cluster_agent
         run: |
           echo "::set-output name=matrixTestPath::`python ./cicd/generate_test_matrix.py`"
-          #echo "::set-output name=matrixClusterConfig::`python ./cicd/generate_test_matrix.py cluster-config-file`
 
   system_tests:
     runs-on: ubuntu-latest
@@ -84,7 +83,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        #cluster_config: ${{ fromJson(needs.system_test_install.outputs.matrixClusterConfig) }}
         test_path: ${{ fromJson(needs.system_test_install.outputs.matrixTestPath) }}
 
     steps:
@@ -92,11 +90,13 @@ jobs:
       - name: get-cluster-config-path
         id: get-cluster-config-path
         run: echo "::set-output name=clusterConfig::`python ./cicd/get_test_cluster_config.py ${{ matrix.test_path }}`"
+        working-directory: ./pkg/cluster_agent
+
       - name: Create k8s Kind Cluster
         uses: helm/kind-action@v1.1.0
         with:
           cluster_name: test-cluster
-          config: ./pkg/cluster_agent/${{ steps.get-cluster-config-path.outputs.clusterConfig }}
+          config: ./pkg/cluster_agent/ ${{ steps.get-cluster-config-path.outputs.clusterConfig }}
 
       - name: test-docker
         run: which docker
