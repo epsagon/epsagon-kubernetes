@@ -72,6 +72,7 @@ jobs:
       matrixNoCode: ${{ steps.set-matrix.outputs.matrixNoCode }}
       matrixCustomPackage: ${{ steps.set-matrix.outputs.matrixCustomPackage }}
     steps:
+      - uses: actions/checkout@v2
       - name: set-matrix
         id: set-matrix
         working-directory: ./pkg/cluster_agent
