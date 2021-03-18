@@ -67,7 +67,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrixTestPath: ${{ steps.set-matrix.outputs.matrixTestPath }}
-      matrixClusterConfig: ${{ steps.set-matrix.outputs.ClusterConfig }}
+      matrixClusterConfig: ${{ steps.set-matrix.outputs.matrixClusterConfig }}
     steps:
       - uses: actions/checkout@v2
       - name: set-matrix
