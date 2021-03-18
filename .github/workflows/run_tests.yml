@@ -85,7 +85,7 @@ jobs:
       fail-fast: false
       matrix:
         cluster_config: ${{ fromJson(needs.system_test_install.outputs.matrixClusterConfig) }}
-        test_path: ${{ fromJson(needs.install.system_test_install.outputs.matrixTestPath) }}
+        test_path: ${{ fromJson(needs.system_test_install.outputs.matrixTestPath) }}
 
     steps:
       - uses: actions/checkout@v2
