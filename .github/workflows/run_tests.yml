@@ -74,7 +74,7 @@ jobs:
         id: set-matrix
         working-directory: ./pkg/cluster_agent
         run: |
-          echo "::set-output name=matrixTestPath::`python ./cicd/generate_test_matrix.py`
+          echo "::set-output name=matrixTestPath::`python ./cicd/generate_test_matrix.py`"
           #echo "::set-output name=matrixClusterConfig::`python ./cicd/generate_test_matrix.py cluster-config-file`
 
   system_tests:
@@ -91,7 +91,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: get-cluster-config-path
         id: get-cluster-config-path
-        run: echo "::set-output name=clusterConfig::`python ./cicd/get_test_cluster_config.py ${{ matrix.test_path }}`
+        run: echo "::set-output name=clusterConfig::`python ./cicd/get_test_cluster_config.py ${{ matrix.test_path }}`"
       - name: Create k8s Kind Cluster
         uses: helm/kind-action@v1.1.0
         with:
