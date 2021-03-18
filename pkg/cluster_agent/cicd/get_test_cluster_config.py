@@ -15,7 +15,7 @@ DEFAULT_CLUSTER_CONFIG = os.path.join(SYSTEM_TEST_DIRPATH, CLUSTER_CONFIG_FILENA
 
 def main(test_directory):
     cluster_config_path = DEFAULT_CLUSTER_CONFIG
-    file_path = os.path.join(directory, CLUSTER_CONFIG_FILENAME)
+    file_path = os.path.join(test_directory, CLUSTER_CONFIG_FILENAME)
     if os.path.exists(file_path):
         cluster_config_path = file_path
 
