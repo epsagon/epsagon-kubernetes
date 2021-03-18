@@ -29,45 +29,11 @@ jobs:
         run: python -m pytest ./tests/ut
 
 
-  agent-sanity-test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Create k8s Kind Cluster
-        uses: helm/kind-action@v1.1.0
-        with:
-          cluster_name: test-cluster
-
-      - uses: actions/checkout@v2
-
-      - name: test-docker
-        run: which docker
-        working-directory: ./pkg/cluster_agent
-
-      - name: build-image
-        run: docker build . -t epsagon/cluster-agent:test -f ./build/Dockerfile
-        working-directory: ./pkg/cluster_agent
-
-      - name: load-image-to-kind
-        run: kind load docker-image epsagon/cluster-agent:test --name test-cluster
-
-      - name: deploy-epsagon-role
-        run: kubectl apply -f ./epsagon_role.yaml
-        working-directory: ./pkg/cluster_agent
-
-      - name: deploy-agent-deployment
-        run: kubectl apply -f ./tests/test_agent_deployment.yaml
-        working-directory: ./pkg/cluster_agent
-
-      - name: test-agent-container-running
-        run: sleep 10 && kubectl -n epsagon-monitoring get pods | grep cluster-agent | grep Running
-
-
   system_test_install:
     timeout-minutes: 10
     runs-on: ubuntu-latest
     outputs:
       matrixTestPath: ${{ steps.set-matrix.outputs.matrixTestPath }}
-      #matrixClusterConfig: ${{ steps.set-matrix.outputs.matrixClusterConfig }}
     steps:
       - uses: actions/checkout@v2
       - name: set-matrix
@@ -116,6 +82,9 @@ jobs:
       - name: deploy-agent-deployment
         run: kubectl apply -f ./tests/test_agent_deployment.yaml
         working-directory: ./pkg/cluster_agent
+
+      - name: test-agent-container-running
+        run: sleep 10 && kubectl -n epsagon-monitoring get pods | grep cluster-agent | grep Running
 
       - name: Set up Python 3.7
         uses: actions/setup-python@v2
