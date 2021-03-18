@@ -96,7 +96,7 @@ jobs:
         uses: helm/kind-action@v1.1.0
         with:
           cluster_name: test-cluster
-          config: ./pkg/cluster_agent/ ${{ steps.get-cluster-config-path.outputs.clusterConfig }}
+          config: ./pkg/cluster_agent/${{ steps.get-cluster-config-path.outputs.clusterConfig }}
 
       - name: test-docker
         run: which docker
