@@ -17,7 +17,7 @@ jobs:
         with:
           python-version: 3.7
 
-      - name: Install dependencies # no if here since we still need to install from pip cache
+      - name: Install dependencies
         timeout-minutes: 5
         working-directory: ./pkg/cluster_agent
         run: |
@@ -75,17 +75,6 @@ jobs:
       - name: load-image-to-kind
         run: kind load docker-image epsagon/cluster-agent:test --name test-cluster
 
-      - name: deploy-epsagon-role
-        run: kubectl apply -f ./epsagon_role.yaml
-        working-directory: ./pkg/cluster_agent
-
-      - name: deploy-agent-deployment
-        run: kubectl apply -f ./tests/test_agent_deployment.yaml
-        working-directory: ./pkg/cluster_agent
-
-      - name: test-agent-container-running
-        run: sleep 10 && kubectl -n epsagon-monitoring get pods | grep cluster-agent | grep Running
-
       - name: Set up Python 3.7
         uses: actions/setup-python@v2
         with:
@@ -99,5 +88,5 @@ jobs:
           pip install -r requirements.txt
       - name: test
         timeout-minutes: 1
-        working-directory: ./pkg/cluster_agent
+        working-directory: ./pkg/cluster_agent/tests/system/
         run: python -m pytest ${{ matrix.test_path }}
