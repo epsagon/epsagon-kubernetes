@@ -3,46 +3,52 @@ Common and builtin fixtures & utilities
 """
 import asyncio
 import yaml
-from typing import Dict
+import time
 from datetime import datetime, timedelta
 import pytest
 from kubernetes_asyncio import config
 from kubernetes_asyncio import client
 from kubernetes_asyncio import utils
 
-DEFAULT_CLUSTER_AGENT_DEPLOYMENT = {
-    'apiVersion': 'apps/v1',
-    'kind': 'Deployment',
-    'metadata': {'name': 'agent-cluster-agent', 'namespace': 'epsagon-monitoring'},
-    'spec': {
-        'selector': {'matchLabels': {'app': 'epsagon-cluster-agent'}},
-        'replicas': 1,
-        'template': {
-            'metadata': {'labels': {'app': 'epsagon-cluster-agent'}},
-            'spec': {
-                'serviceAccountName': 'cluster-agent',
-                'containers': [
-                    {
-                        'name': 'cluster-agent',
-                        'image': 'epsagon/cluster-agent:1.0.0',
-                        # required for pulling from the docker local loaded images
-                        # and not from Epsagon remote hub
-                        'imagePullPolicy': 'Never',
-                        'env': [
-                            {'name': 'EPSAGON_TOKEN', 'value': '123'},
-                            {'name': 'EPSAGON_CLUSTER_NAME', 'value': 'test'},
-                            {'name': 'EPSAGON_DEBUG', 'value': 'false'},
-                            {
-                                'name': 'EPSAGON_COLLECTOR_URL',
-                                'value': 'http://localhost:5000'
-                            }
-                        ]
-                    }
-                ]
-            }
-        }
+
+def default_cluster_agent_deployment():
+    """ Default cluster agent deployment """
+    labels = {
+        'app': 'epsagon-cluster-agent'
     }
-}
+    return client.V1Deployment(
+        api_version='apps/v1',
+        kind='Deployment',
+        metadata=client.V1ObjectMeta(name='cluster-agent', namespace='epsagon-monitoring'),
+        spec=client.V1DeploymentSpec(
+            selector=client.V1LabelSelector(
+                match_labels=labels.copy()
+            ),
+            replicas=1,
+            template=client.V1PodTemplateSpec(
+                metadata=client.V1ObjectMeta(labels=labels.copy()),
+                spec=client.V1PodSpec(
+                    service_account_name='cluster-agent',
+                    containers=[
+                        client.V1Container(
+                            name='cluster-agent',
+                            image='epsagon/cluster-agent:test',
+                            # required for pulling from the docker local loaded images
+                            # and not from Epsagon remote hub
+                            image_pull_policy='Never',
+                            env=[
+                                client.V1EnvVar(name='EPSAGON_TOKEN', value='123'),
+                                client.V1EnvVar(name='EPSAGON_CLUSTER_NAME', value='test'),
+                                client.V1EnvVar(name='EPSAGON_DEBUG', value='false'),
+                                client.V1EnvVar(name='EPSAGON_COLLECTOR_URL', value='http://localhost:5000'),
+                            ]
+                        ),
+                    ]
+                ),
+            ),
+        ),
+    )
+
 
 @pytest.fixture(scope='session')
 def event_loop(request):
@@ -64,16 +70,19 @@ class ClusterAgentInstaller:
     """ Cluster agent installer """
 
     def __init__(self, api_client=None):
-        self.api_client = api_client
-        self.apps_api_client = client.AppsV1Api(api_client=self.api_client)
+        self.apps_api_client = client.AppsV1Api(api_client=api_client)
+        self.api_client = self.apps_api_client.api_client
 
-    def install_epsagon_role(self):
+    async def install_epsagon_role(self):
         """ Installs the Epsagon role required for the cluster agent """
-        utils.create_from_yaml('../../epsagon_role.yaml')
+        await utils.create_from_yaml(self.api_client, '../../epsagon_role.yaml', namespace="epsagon-monitoring")
 
-    def _install_cluster_agent(self, agent_deployment: Dict):
+    async def install_cluster_agent(self, agent_deployment: client.V1Deployment):
         """ Installs the cluster agent """
-        utils.create_from_dict(agent_deployment)
+        await self.apps_api_client.create_namespaced_deployment(
+            agent_deployment.metadata.namespace,
+            agent_deployment
+        )
 
     async def _wait_for_deployment_pod(self, deployment_name: str, namespace: str):
         """
@@ -88,10 +97,11 @@ class ClusterAgentInstaller:
                 namespace
             )
             ready_replicas = deployment.status.ready_replicas
-            if ready_replicas > 0:
+            if ready_replicas and ready_replicas > 0:
                 print(ready_replicas)
                 return
             time.sleep(2)
+            end = datetime.now()
 
         raise Exception("Cluster agent pod failed to start")
 
@@ -103,16 +113,15 @@ class ClusterAgentInstaller:
         """
         Installs the cluster agent.
         """
-        print("X")
-        #self._install_epsagon_role()
+        await self.install_epsagon_role()
         agent_deployment = (
             agent_deployment
             if agent_deployment
-            else DEFAULT_CLUSTER_AGENT_DEPLOYMENT
+            else default_cluster_agent_deployment()
         )
-        #self._install_cluster_agent(agent_deployment)
-        deployment_name = agent_deployment["metadata"]["name"]
-        deployment_namespace = agent_deployment["metadata"]["namespace"]
+        await self.install_cluster_agent(agent_deployment)
+        deployment_name = agent_deployment.metadata.name
+        deployment_namespace = agent_deployment.metadata.namespace
         if wait_for_agent_pod_initialization:
             await self._wait_for_deployment_pod(deployment_name, deployment_namespace)
 
