@@ -1,0 +1,88 @@
+name: Create Cluster
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches:
+      - main
+
+jobs:
+  unit-testing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+
+      - name: Install dependencies
+        timeout-minutes: 5
+        working-directory: ./pkg/cluster_agent
+        run: |
+          pip install -r requirements-dev.txt
+          pip install -r requirements.txt
+      - name: test
+        timeout-minutes: 1
+        working-directory: ./pkg/cluster_agent
+        run: python -m pytest ./tests/ut
+
+
+  system_test_install:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    outputs:
+      matrixTestPath: ${{ steps.set-matrix.outputs.matrixTestPath }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: set-matrix
+        id: set-matrix
+        working-directory: ./pkg/cluster_agent
+        run: |
+          echo "::set-output name=matrixTestPath::`python ./cicd/generate_test_matrix.py`"
+
+  system_tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: system_test_install
+    strategy:
+      fail-fast: false
+      matrix:
+        test_path: ${{ fromJson(needs.system_test_install.outputs.matrixTestPath) }}
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: get-cluster-config-path
+        id: get-cluster-config-path
+        run: echo "::set-output name=clusterConfig::`python ./cicd/get_test_cluster_config.py ${{ matrix.test_path }}`"
+        working-directory: ./pkg/cluster_agent
+
+      - name: Create k8s Kind Cluster
+        uses: helm/kind-action@v1.1.0
+        with:
+          cluster_name: test-cluster
+          config: ./pkg/cluster_agent/${{ steps.get-cluster-config-path.outputs.clusterConfig }}
+
+      - name: build-image
+        run: docker build . -t epsagon/cluster-agent:test -f ./build/Dockerfile
+        working-directory: ./pkg/cluster_agent
+
+      - name: load-image-to-kind
+        run: kind load docker-image epsagon/cluster-agent:test --name test-cluster
+
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+
+      - name: Install dependencies
+        timeout-minutes: 5
+        working-directory: ./pkg/cluster_agent
+        run: |
+          pip install -r requirements-dev.txt
+          pip install -r requirements.txt
+      - name: test
+        timeout-minutes: 1
+        working-directory: ./pkg/cluster_agent/tests/system/
+        run: python -m pytest ${{ matrix.test_path }}
