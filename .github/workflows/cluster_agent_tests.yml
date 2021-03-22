@@ -64,10 +64,6 @@ jobs:
           cluster_name: test-cluster
           config: ./pkg/cluster_agent/${{ steps.get-cluster-config-path.outputs.clusterConfig }}
 
-      - name: test-docker
-        run: which docker
-        working-directory: ./pkg/cluster_agent
-
       - name: build-image
         run: docker build . -t epsagon/cluster-agent:test -f ./build/Dockerfile
         working-directory: ./pkg/cluster_agent
@@ -80,7 +76,7 @@ jobs:
         with:
           python-version: 3.7
 
-      - name: Install dependencies # no if here since we still need to install from pip cache
+      - name: Install dependencies
         timeout-minutes: 5
         working-directory: ./pkg/cluster_agent
         run: |

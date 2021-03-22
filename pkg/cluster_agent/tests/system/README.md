@@ -7,7 +7,7 @@
 
 # Epsagon Kubernetes Cluster Agent - System tests
 
-To run the ckuster agent system tests, you need the kubectl context to be set to a
+To run the cluster agent system tests, you need the kubectl context to be set to a
 kubernetes cluster.
 Those tests also run as part of the CICD by an workflow set for this repo. 
 The workflow which already take care of the environment setup (using a Kind cluster).
