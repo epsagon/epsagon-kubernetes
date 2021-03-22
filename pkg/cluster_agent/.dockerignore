@@ -1,0 +1,7 @@
+test*
+build/
+__pycache__/
+README.md
+venv
+requirements-dev.txt
+*.yml
