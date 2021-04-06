@@ -48,6 +48,12 @@ class ClusterDiscovery:
             "Deployment": WatchTarget(
                 self.apps_api_client.list_deployment_for_all_namespaces,
             ),
+            "DaemonSet": WatchTarget(
+                self.apps_api_client.list_daemon_set_for_all_namespaces,
+            ),
+            "StatefulSet": WatchTarget(
+                self.apps_api_client.list_stateful_set_for_all_namespaces,
+            ),
         }
 
     def __init__(
