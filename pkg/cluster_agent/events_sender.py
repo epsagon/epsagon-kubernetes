@@ -31,6 +31,7 @@ class EventsSender:
             return
 
         events = [event.to_dict() for event in events]
+        print(events[0])
         events_json = json.dumps(events, cls=DateTimeEncoder)
         compressed_data = base64.b64encode(
             zlib.compress(events_json.encode("utf-8"))
@@ -40,4 +41,5 @@ class EventsSender:
             "cluster_name": self.cluster_name,
             "data": compressed_data,
         }
-        await self.client.post(self.url, json.dumps(data_to_send))
+        
+        #await self.client.post(self.url, json.dumps(data_to_send))

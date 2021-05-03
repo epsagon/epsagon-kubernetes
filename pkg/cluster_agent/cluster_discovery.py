@@ -42,18 +42,19 @@ class ClusterDiscovery:
         Creates watch targets - all pods, nodes & deployments.
         """
         return {
-            "Pod": WatchTarget(self.client.list_pod_for_all_namespaces),
-            "Node": WatchTarget(self.client.list_node),
-            "Namespace": WatchTarget(self.client.list_namespace),
-            "Deployment": WatchTarget(
-                self.apps_api_client.list_deployment_for_all_namespaces,
-            ),
-            "DaemonSet": WatchTarget(
-                self.apps_api_client.list_daemon_set_for_all_namespaces,
-            ),
-            "StatefulSet": WatchTarget(
-                self.apps_api_client.list_stateful_set_for_all_namespaces,
-            ),
+            #"Pod": WatchTarget(self.client.list_pod_for_all_namespaces),
+            "Event": WatchTarget(self.client.list_event_for_all_namespaces),
+            #"Node": WatchTarget(self.client.list_node),
+            #"Namespace": WatchTarget(self.client.list_namespace),
+            #"Deployment": WatchTarget(
+            #    self.apps_api_client.list_deployment_for_all_namespaces,
+            #),
+            #"DaemonSet": WatchTarget(
+            #    self.apps_api_client.list_daemon_set_for_all_namespaces,
+            #),
+            #"StatefulSet": WatchTarget(
+            #    self.apps_api_client.list_stateful_set_for_all_namespaces,
+            #),
         }
 
     def __init__(
