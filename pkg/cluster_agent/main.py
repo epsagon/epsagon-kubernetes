@@ -47,7 +47,11 @@ async def run():
         CLUSTER_NAME,
         EPSAGON_TOKEN
     )
-    cluster_discovery = ClusterDiscovery(events_manager.write_event)
+    cluster_discovery = ClusterDiscovery(
+        events_manager.write_event,
+        should_collect_resources=(getenv("EPSAGON_COLLECT_RESOURCES", "TRUE").upper() == "TRUE"),
+        should_collect_events=(getenv("EPSAGON_COLLECT_EVENTS", "FALSE").upper() == "TRUE"),
+    )
     forwarder = Forwarder(
         events_manager,
         events_sender

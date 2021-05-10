@@ -37,30 +37,43 @@ class ClusterDiscovery:
     # default time to wait between watch attemps
     RETRY_INTERVAL_SECONDS = 30
 
-    def _create_watch_targets(self) -> Dict[str, WatchTarget]:
+    def _create_watch_targets(
+            self,
+            should_collect_resources: bool,
+            should_collect_events: bool,
+    ) -> Dict[str, WatchTarget]:
         """
         Creates watch targets - all pods, nodes & deployments.
         """
-        return {
-            "Pod": WatchTarget(self.client.list_pod_for_all_namespaces),
-            "Node": WatchTarget(self.client.list_node),
-            "Namespace": WatchTarget(self.client.list_namespace),
-            "Deployment": WatchTarget(
-                self.apps_api_client.list_deployment_for_all_namespaces,
-            ),
-            "DaemonSet": WatchTarget(
-                self.apps_api_client.list_daemon_set_for_all_namespaces,
-            ),
-            "StatefulSet": WatchTarget(
-                self.apps_api_client.list_stateful_set_for_all_namespaces,
-            ),
-        }
+        targets = {}
+        if should_collect_resources:
+            targets.update(
+                {
+                    "Pod": WatchTarget(self.client.list_pod_for_all_namespaces),
+                    "Node": WatchTarget(self.client.list_node),
+                    "Namespace": WatchTarget(self.client.list_namespace),
+                    "Deployment": WatchTarget(
+                        self.apps_api_client.list_deployment_for_all_namespaces,
+                    ),
+                    "DaemonSet": WatchTarget(
+                        self.apps_api_client.list_daemon_set_for_all_namespaces,
+                    ),
+                    "StatefulSet": WatchTarget(
+                        self.apps_api_client.list_stateful_set_for_all_namespaces,
+                    ),
+                }
+            )
+        if should_collect_events:
+            targets["Event"] = WatchTarget(self.client.list_event_for_all_namespaces)
+        return targets
 
     def __init__(
             self,
             event_handler,
+            should_collect_resources=True,
+            should_collect_events=False,
             api_client=None,
-            retry_interval_seconds=RETRY_INTERVAL_SECONDS
+            retry_interval_seconds=RETRY_INTERVAL_SECONDS,
     ):
         """
         :param event_handler: to write events to
@@ -72,7 +85,10 @@ class ClusterDiscovery:
         self.client = kubernetes_asyncio.client.CoreV1Api(api_client=api_client)
         self.version_client = kubernetes_asyncio.client.VersionApi(api_client=api_client)
         self.apps_api_client = kubernetes_asyncio.client.AppsV1Api(api_client=api_client)
-        self.watch_targets = self._create_watch_targets()
+        self.watch_targets = self._create_watch_targets(
+            should_collect_resources,
+            should_collect_events
+        )
         self.watch_tasks = []
         if retry_interval_seconds < 0:
             raise ValueError("Retry interval seconds must be bigger than 0")
