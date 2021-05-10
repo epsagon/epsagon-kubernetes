@@ -39,7 +39,6 @@ async def run():
     """
     Runs the cluster discovery & forwarder.
     """
-    await config.load_kube_config()
     events_manager = InMemoryEventsManager()
     epsagon_client = await EpsagonClient.create(EPSAGON_TOKEN)
     events_sender = EventsSender(
@@ -101,7 +100,7 @@ def main():
         )
         return
 
-    #config.load_incluster_config()
+    config.load_incluster_config()
     logging.info("Loaded cluster config")
     if IS_DEBUG_MODE:
         loaded_conf = client.configuration.Configuration.get_default_copy()
