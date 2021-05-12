@@ -85,6 +85,7 @@ class ClusterDiscovery:
         self.client = kubernetes_asyncio.client.CoreV1Api(api_client=api_client)
         self.version_client = kubernetes_asyncio.client.VersionApi(api_client=api_client)
         self.apps_api_client = kubernetes_asyncio.client.AppsV1Api(api_client=api_client)
+        self.should_collect_resources = should_collect_resources
         self.watch_targets = self._create_watch_targets(
             should_collect_resources,
             should_collect_events
@@ -221,7 +222,8 @@ class ClusterDiscovery:
         after RETRY_INTERVAL_SECONDS.
         """
         try:
-            await self._collect_cluster_info()
+            if self.should_collect_resources:
+                await self._collect_cluster_info()
             self.discover_tasks = [
                 asyncio.create_task(self._start_watch(kind, target))
                 for kind, target in self.watch_targets.items()
