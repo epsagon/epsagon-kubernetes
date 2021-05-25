@@ -222,8 +222,7 @@ class ClusterDiscovery:
         after RETRY_INTERVAL_SECONDS.
         """
         try:
-            if self.should_collect_resources:
-                await self._collect_cluster_info()
+            await self._collect_cluster_info()
             self.discover_tasks = [
                 asyncio.create_task(self._start_watch(kind, target))
                 for kind, target in self.watch_targets.items()
