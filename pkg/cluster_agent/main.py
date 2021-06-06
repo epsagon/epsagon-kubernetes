@@ -24,7 +24,12 @@ COLLECTOR_URL = getenv(
     "https://collector.epsagon.com/resources/v1"
 )
 IS_DEBUG_MODE = getenv("EPSAGON_DEBUG", "").lower() == "true"
-logging.getLogger().setLevel(logging.DEBUG if IS_DEBUG_MODE else logging.INFO)
+LOG_FORMAT = "%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s"
+logging.basicConfig(
+    format=LOG_FORMAT,
+    level=logging.DEBUG if IS_DEBUG_MODE else logging.INFO,
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 def _cancel_tasks(tasks):
     """
