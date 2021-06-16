@@ -134,7 +134,7 @@ class ClusterDiscovery:
                 event_type = event.get("type")
                 if not event_type or event_type.lower() == "error":
                     raise ErrorWatchEventException("Received an error event")
-
+                logging.debug("Received event: %s", event)
                 kubernetes_event = WatchKubernetesEvent.from_watch_dict(event)
                 await self.event_handler(kubernetes_event)
                 self._update_resource_version(
