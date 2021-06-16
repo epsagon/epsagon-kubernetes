@@ -137,11 +137,13 @@ class ClusterDiscovery:
                 logging.debug("Received event: %s", event)
                 kubernetes_event = WatchKubernetesEvent.from_watch_dict(event)
                 await self.event_handler(kubernetes_event)
+                resource_version = kubernetes_event.get_resource_version()
                 self._update_resource_version(
                     kind,
                     target,
-                    kubernetes_event.get_resource_version()
+                    resource_version
                 )
+                logging.debug("%s new resource version: %s", kind, resource_version)
             except KubernetesEventException:
                 logging.debug("Skipping invalid event")
 
@@ -169,6 +171,7 @@ class ClusterDiscovery:
             stream = w.stream(target.endpoint, resource_version=resource_version)
             await self._run_watch(kind, target, stream)
         except ClientError:
+            logging.debug("Client Error: %s", format_exc())
             # resource version timeout, restarting watch
             # from last preserved resource version
             await self._start_watch(kind, target)
