@@ -167,9 +167,11 @@ class ClusterDiscovery:
             resource_version = target.last_resource_version
 
         try:
-            w = kubernetes_asyncio.watch.Watch()
-            stream = w.stream(target.endpoint, resource_version=resource_version)
-            await self._run_watch(kind, target, stream)
+            while True:
+                logging.debug("Start watch for %s", kind)
+                w = kubernetes_asyncio.watch.Watch()
+                stream = w.stream(target.endpoint, resource_version=resource_version)
+                await self._run_watch(kind, target, stream)
         except ClientError:
             logging.debug("Client Error: %s", format_exc())
             # resource version timeout, restarting watch
