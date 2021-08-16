@@ -43,13 +43,10 @@ class EventsManager(abc.ABC):
         In case of timeout, returns None.
         """
         event = None
-        if not timeout:
-            event = await self.get_event()
-        else:
-            try:
-                event = await wait_for(self.get_event(), timeout=timeout)
-            except TimeoutError:
-                pass
+        try:
+            event = await wait_for(self.get_event(), timeout=timeout)
+        except TimeoutError:
+            pass
 
         return event
 
