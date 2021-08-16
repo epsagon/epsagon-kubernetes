@@ -100,12 +100,7 @@ class ClusterAgentInstaller:
             if ready_replicas and ready_replicas > 0:
                 print(ready_replicas)
                 return
-            #print(type(deployment))
-            #print(deployment)
-            print(type(deployment.status))
-            print(deployment.status)
-            print(type(ready_replicas))
-            print(ready_replicas)
+
             time.sleep(2)
             end = datetime.now()
 
