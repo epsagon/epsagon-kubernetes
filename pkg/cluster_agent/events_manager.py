@@ -3,7 +3,7 @@ Events managers module
 """
 import abc
 import logging
-from asyncio import Queue
+from asyncio import Queue, wait_for, TimeoutError
 from typing import List
 from kubernetes_event import KubernetesEvent
 
@@ -22,7 +22,6 @@ class EventsManager(abc.ABC):
         """
         raise NotImplementedError
 
-
     @abc.abstractmethod
     async def write_event(self, event: KubernetesEvent):
         """
@@ -37,18 +36,46 @@ class EventsManager(abc.ABC):
         """
         raise NotImplementedError
 
+    async def _read_event(self, timeout: int=None):
+        """
+        Reads and returns an event. If timeout is given, then trying to read event up to
+        the timeout given value.
+        In case of timeout, returns None.
+        """
+        event = None
+        if not timeout:
+            event = await self.get_event()
+        else:
+            try:
+                event = await wait_for(self.get_event(), timeout=timeout)
+            except TimeoutError:
+                pass
 
-    async def get_events(self, max_size: int) -> List[KubernetesEvent]:
+        return event
+
+    async def get_events(self, max_size: int, timeout: int=None) -> List[KubernetesEvent]:
         """
         Reads up to max_size events.
-        Waits until there's at least one event. Then, reading up to max_size
-        events (or all existing events if it's less than max_size).
+        The functions waits until the earlier:
+        - there's at least one event. In this case, returns all the
+        existing events.
+        - timeout been passed (in case its given). In this case, an empty list is returned.
+        :param max_size: of events to read
         If max_size < 1, then returning an empty list.
+        If the current events count in the queue is less than max_size, then
+        returns just the current events.
+        :param timeout: If given, then setting this timeout for the first
+        read event attempt. If no event is read during after the given timeout,
+        the functions returns with an empty list.
         """
         if max_size < 1:
             return []
 
-        events = [await self.get_event()]
+        first_event = await self._read_event(timeout=timeout)
+        if not first_event:
+            return []
+
+        events = [first_event]
         while not self.is_empty() and len(events) < max_size:
             events.append(await self.get_event())
 
