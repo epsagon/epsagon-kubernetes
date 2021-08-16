@@ -88,7 +88,7 @@ class ClusterAgentInstaller:
         """
         Waits for one a pod of the given deployment to be ready
         """
-        timeout = timedelta(seconds=180)
+        timeout = timedelta(seconds=30)
         start = datetime.now()
         end = datetime.now()
         while end - start < timeout:
@@ -100,7 +100,6 @@ class ClusterAgentInstaller:
             if ready_replicas and ready_replicas > 0:
                 print(ready_replicas)
                 return
-
             time.sleep(2)
             end = datetime.now()
 
