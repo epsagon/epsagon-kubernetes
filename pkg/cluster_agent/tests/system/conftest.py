@@ -122,6 +122,7 @@ class ClusterAgentInstaller:
         await self.install_cluster_agent(agent_deployment)
         deployment_name = agent_deployment.metadata.name
         deployment_namespace = agent_deployment.metadata.namespace
+        # validates the pod is initialized
         if wait_for_agent_pod_initialization:
             await self._wait_for_deployment_pod(deployment_name, deployment_namespace)
 
