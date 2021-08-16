@@ -26,7 +26,7 @@ class EventsManagerMock(InMemoryEventsManager):
         super().__init__()
         self.expected_max_size = expected_max_size
 
-    async def get_events(self, max_size: int) -> List[KubernetesEvent]:
+    async def get_events(self, max_size: int, timeout: int=None) -> List[KubernetesEvent]:
         """
         Asserts the given max size,
         """
