@@ -59,7 +59,7 @@ jobs:
         working-directory: ./pkg/cluster_agent
 
       - name: Create k8s Kind Cluster
-        uses: helm/kind-action@v1.1.0
+        uses: helm/kind-action@v1.2.0
         with:
           cluster_name: test-cluster
           config: ./pkg/cluster_agent/${{ steps.get-cluster-config-path.outputs.clusterConfig }}
