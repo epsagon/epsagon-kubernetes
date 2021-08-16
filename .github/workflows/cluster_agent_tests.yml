@@ -85,4 +85,4 @@ jobs:
       - name: test
         timeout-minutes: 1
         working-directory: ./pkg/cluster_agent/tests/system/
-        run: python -m pytest ${{ matrix.test_path }}
+        run: python -m pytest -sv ${{ matrix.test_path }}
