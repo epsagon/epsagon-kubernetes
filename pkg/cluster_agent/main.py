@@ -5,7 +5,9 @@ import time
 import logging
 import asyncio
 import socket
-from os import getenv
+import os
+import signal
+import aiofiles
 from datetime import datetime, timezone
 from traceback import format_exc
 from aiohttp import client_exceptions
@@ -17,19 +19,53 @@ from epsagon_client import EpsagonClient, EpsagonClientException
 from forwarder import Forwarder
 
 RESTART_WAIT_TIME_SECONDS = 60
-EPSAGON_TOKEN = getenv("EPSAGON_TOKEN")
-CLUSTER_NAME = getenv("EPSAGON_CLUSTER_NAME")
-COLLECTOR_URL = getenv(
+EPSAGON_TOKEN = os.getenv("EPSAGON_TOKEN")
+CLUSTER_NAME = os.getenv("EPSAGON_CLUSTER_NAME")
+COLLECTOR_URL = os.getenv(
     "EPSAGON_COLLECTOR_URL",
     "https://collector.epsagon.com/resources/v1"
 )
-IS_DEBUG_MODE = getenv("EPSAGON_DEBUG", "").lower() == "true"
+EPSAGON_CONF_DIR = "/etc/epsagon"
+IS_DEBUG_FILE_PATH = f"{EPSAGON_CONF_DIR}/epsagon_debug"
 LOG_FORMAT = "%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s"
-logging.basicConfig(
-    format=LOG_FORMAT,
-    level=logging.DEBUG if IS_DEBUG_MODE else logging.INFO,
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+
+
+async def _is_debug_mode():
+    """
+    Checks whether the agent runs in debug mode.
+    Checks IS_DEBUG_FILE_PATH boolean value. In case of error reading the
+    file content, using the EPSAGON_DEBUG env var.
+    """
+    try:
+        async with aiofiles.open(IS_DEBUG_FILE_PATH, "r") as reader:
+            return (await reader.read()).lower() == "true"
+    except Exception: # pylint: disable=broad-except
+        pass
+
+    return os.getenv("EPSAGON_DEBUG", "").lower() == "true"
+
+
+def _configure_logging(is_debug: bool):
+    """
+    Configures the main logger.
+    :param is_debug: indicates whether to set debugging
+    """
+    # required for basicConfig to override current logger settings
+    logging.getLogger().handlers = []
+    logging.basicConfig(
+        format=LOG_FORMAT,
+        level=logging.DEBUG if is_debug else logging.INFO,
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+
+
+def _reload_handler():
+    """
+    Reload configuration handler - reconfigures the main logger according
+    to the current debug mode.
+    """
+    _configure_logging(_is_debug_mode())
+
 
 def _cancel_tasks(tasks):
     """
@@ -40,10 +76,29 @@ def _cancel_tasks(tasks):
             task.cancel()
 
 
-async def run():
+async def _epsagon_conf_watcher(initial_debug_mode: bool):
+    """
+    Watches for changes in the epsagon conf.
+    If debug mode has been changed, updates the main logger
+    with the new logging level.
+    """
+    debug_mode = initial_debug_mode
+    while True:
+        try:
+            current_debug_mode = await _is_debug_mode()
+            if debug_mode != current_debug_mode:
+                debug_mode = current_debug_mode
+                _configure_logging(debug_mode)
+        except Exception: # pylint: disable=broad-except
+            pass
+        await asyncio.sleep(120)
+
+
+async def run(is_debug_mode):
     """
     Runs the cluster discovery & forwarder.
     """
+    asyncio.create_task(_epsagon_conf_watcher(is_debug_mode))
     events_manager = InMemoryEventsManager()
     epsagon_client = await EpsagonClient.create(EPSAGON_TOKEN)
     events_sender = EventsSender(
@@ -54,8 +109,8 @@ async def run():
     )
     cluster_discovery = ClusterDiscovery(
         events_manager.write_event,
-        should_collect_resources=(getenv("EPSAGON_COLLECT_RESOURCES", "TRUE").upper() == "TRUE"),
-        should_collect_events=(getenv("EPSAGON_COLLECT_EVENTS", "FALSE").upper() == "TRUE"),
+        should_collect_resources=(os.getenv("EPSAGON_COLLECT_RESOURCES", "TRUE").upper() == "TRUE"),
+        should_collect_events=(os.getenv("EPSAGON_COLLECT_EVENTS", "FALSE").upper() == "TRUE"),
     )
     forwarder = Forwarder(
         events_manager,
@@ -91,6 +146,8 @@ async def run():
 
 
 def main():
+    is_debug = asyncio.run(_is_debug_mode())
+    _configure_logging(is_debug)
     if not EPSAGON_TOKEN:
         logging.error(
             "Missing Epsagon token. "
@@ -107,7 +164,7 @@ def main():
 
     config.load_incluster_config()
     logging.info("Loaded cluster config")
-    if IS_DEBUG_MODE:
+    if is_debug:
         loaded_conf = client.configuration.Configuration.get_default_copy()
         logging.debug(
             "Loaded cluster configuration:\nHost: %s\n"
@@ -117,7 +174,8 @@ def main():
             bool(loaded_conf.api_key)
         )
     loop = asyncio.new_event_loop()
-    loop.run_until_complete(run())
+    loop.add_signal_handler(signal.SIGHUP, _reload_handler)
+    loop.run_until_complete(run(is_debug))
     loop.close()
 
 if __name__ == "__main__":
