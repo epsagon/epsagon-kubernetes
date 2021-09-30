@@ -6,7 +6,6 @@ import logging
 import asyncio
 import socket
 import os
-import sys
 import signal
 
 import aiofiles
@@ -46,6 +45,7 @@ def _get_log_file_name():
 LOG_FILE_PATH = f"{os.getenv('HOME', '/tmp')}/{_get_log_file_name()}"
 LOG_FORMAT = "%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s"
 LOGGER_CONFIGURER = LoggerConfigurer(LOG_FORMAT, LOG_FILE_PATH)
+
 
 async def _is_debug_mode():
     """
