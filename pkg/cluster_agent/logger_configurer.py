@@ -11,7 +11,7 @@ class LoggerConfigurer:
     Logger configurer for the collector log.
     """
 
-    MAX_LOG_FILE_SIZE = 1024 * 1024 # 1MB per log file
+    MAX_LOG_FILE_SIZE = 10 * 1024 * 1024 # 10MB per log file
     FILE_BACKUP_COUNT = 1
 
     def __init__(
