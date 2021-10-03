@@ -7,6 +7,7 @@ import asyncio
 import socket
 import os
 import signal
+
 import aiofiles
 from datetime import datetime, timezone
 from traceback import format_exc
@@ -17,6 +18,7 @@ from events_manager import InMemoryEventsManager
 from events_sender import EventsSender
 from epsagon_client import EpsagonClient, EpsagonClientException
 from forwarder import Forwarder
+from logger_configurer import LoggerConfigurer
 
 RESTART_WAIT_TIME_SECONDS = 60
 EPSAGON_TOKEN = os.getenv("EPSAGON_TOKEN")
@@ -25,9 +27,24 @@ COLLECTOR_URL = os.getenv(
     "EPSAGON_COLLECTOR_URL",
     "https://collector.epsagon.com/resources/v1"
 )
+SHOULD_COLLECT_RESOURCES = os.getenv("EPSAGON_COLLECT_RESOURCES", "TRUE").upper() == "TRUE"
+SHOULD_COLLECT_EVENTS = os.getenv("EPSAGON_COLLECT_EVENTS", "FALSE").upper() == "TRUE"
 EPSAGON_CONF_DIR = "/etc/epsagon"
 IS_DEBUG_FILE_PATH = f"{EPSAGON_CONF_DIR}/epsagon_debug"
+
+def _get_log_file_name():
+    """
+    Gets the log file name, according to the configured collected data
+    """
+    if SHOULD_COLLECT_RESOURCES and SHOULD_COLLECT_EVENTS:
+        return "resources_and_events_log"
+    if SHOULD_COLLECT_RESOURCES:
+        return "resources_log"
+    return "events_log"
+
+LOG_FILE_PATH = f"{os.getenv('HOME', '/tmp')}/{_get_log_file_name()}"
 LOG_FORMAT = "%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s"
+LOGGER_CONFIGURER = LoggerConfigurer(LOG_FORMAT, LOG_FILE_PATH)
 
 
 async def _is_debug_mode():
@@ -45,26 +62,12 @@ async def _is_debug_mode():
     return os.getenv("EPSAGON_DEBUG", "").lower() == "true"
 
 
-def _configure_logging(is_debug: bool):
-    """
-    Configures the main logger.
-    :param is_debug: indicates whether to set debugging
-    """
-    # required for basicConfig to override current logger settings
-    logging.getLogger().handlers = []
-    logging.basicConfig(
-        format=LOG_FORMAT,
-        level=logging.DEBUG if is_debug else logging.INFO,
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
-
-
 def _reload_handler():
     """
     Reload configuration handler - reconfigures the main logger according
     to the current debug mode.
     """
-    _configure_logging(_is_debug_mode())
+    LOGGER_CONFIGURER.update_logger_level(_is_debug_mode())
 
 
 def _cancel_tasks(tasks):
@@ -88,7 +91,7 @@ async def _epsagon_conf_watcher(initial_debug_mode: bool):
             current_debug_mode = await _is_debug_mode()
             if debug_mode != current_debug_mode:
                 debug_mode = current_debug_mode
-                _configure_logging(debug_mode)
+                LOGGER_CONFIGURER.update_logger_level(debug_mode)
         except Exception: # pylint: disable=broad-except
             pass
         await asyncio.sleep(120)
@@ -109,8 +112,8 @@ async def run(is_debug_mode):
     )
     cluster_discovery = ClusterDiscovery(
         events_manager.write_event,
-        should_collect_resources=(os.getenv("EPSAGON_COLLECT_RESOURCES", "TRUE").upper() == "TRUE"),
-        should_collect_events=(os.getenv("EPSAGON_COLLECT_EVENTS", "FALSE").upper() == "TRUE"),
+        should_collect_resources=SHOULD_COLLECT_RESOURCES,
+        should_collect_events=SHOULD_COLLECT_EVENTS,
     )
     forwarder = Forwarder(
         events_manager,
@@ -147,7 +150,7 @@ async def run(is_debug_mode):
 
 def main():
     is_debug = asyncio.run(_is_debug_mode())
-    _configure_logging(is_debug)
+    LOGGER_CONFIGURER.configure_logger(is_debug)
     if not EPSAGON_TOKEN:
         logging.error(
             "Missing Epsagon token. "
