@@ -36,7 +36,6 @@ class LoggerConfigurer:
         - 1 output handler (stdout), level set by given param `is_debug`
         - 1 file handler, level set to logging.DEBUG
         """
-        level = logging.DEBUG if is_debug else logging.INFO
         formatter = logging.Formatter(self.log_format)
         self.log_file_handler = RotatingFileHandler(
             self.log_file_path,
@@ -44,7 +43,7 @@ class LoggerConfigurer:
             backupCount=self.FILE_BACKUP_COUNT
         )
         self.output_handler = logging.StreamHandler(sys.stdout)
-        self.output_handler.level = level
+        self.output_handler.level = logging.DEBUG if is_debug else logging.INFO
         self.log_file_handler.level = logging.DEBUG
         self.logger.setLevel(logging.DEBUG)
         for handler in (self.log_file_handler, self.output_handler):
